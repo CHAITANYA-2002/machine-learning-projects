@@ -31,7 +31,7 @@ This project focuses on creating an advanced prediction system for gate-related 
 ## Installation
 
 1. Clone the repository: `git clone https://github.com/your-username/your-project.git`
-2. Install the required dependencies: `pip install -r requirements.txt`
+2. Install the required dependencies: `tenserflow, keras, cuda, cudnn`
 
 ## Usage
 
