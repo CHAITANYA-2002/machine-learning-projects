@@ -36,7 +36,7 @@ This project focuses on creating an advanced prediction system for gate-related 
 
 ## Credits
 
-This project is a collaborative effort by [Chaitanya Khurana] and [Aryan Rana] under the mentorship of [Mr. Suchit Bhai Patel][linkedin.com/in/suchit-patel-91a24116b]
+This project is a collaborative effort by [Chaitanya Khurana] and [Aryan Rana] under the mentorship of [Mr. Suchit Bhai Patel][LinkedIn](https://www.linkedin.com/in/suchit-patel-91a24116b).
 
 ## License
 
