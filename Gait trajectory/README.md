@@ -33,15 +33,10 @@ This project focuses on creating an advanced prediction system for gate-related 
 1. Clone the repository: `git clone https://github.com/your-username/your-project.git`
 2. Install the required dependencies: `tenserflow, keras, cuda, cudnn`
 
-## Usage
-
-1. Prepare and preprocess your input data following the guidelines provided in the project documentation.
-2. Run the training script to train the DNN and LSTM model: `python train.py`
-3. Utilize the trained model to make predictions: `python predict.py`
 
 ## Credits
 
-This project is a collaborative effort by [Your Name] and [Collaborator's Name]. It is part of [University/Institution Name]'s [Course Name] curriculum.
+This project is a collaborative effort by [Chaitanya Khurana] and [Aryan Rana] under the mentorship of [Mr. Suchit Bhai Patel][linkedin.com/in/suchit-patel-91a24116b]
 
 ## License
 
@@ -49,4 +44,3 @@ This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-Feel free to customize this template according to your project's details. Replace the image file name and adjust the sections as needed.
