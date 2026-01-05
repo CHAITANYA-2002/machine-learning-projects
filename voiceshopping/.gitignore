@@ -1,0 +1,22 @@
+# Git ignore for repository
+
+# Python envs
+venv/
+.venv/
+
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# Local environment file (do not commit secrets)
+.env
+
+# VSCode workspace
+.vscode/
