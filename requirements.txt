@@ -1,0 +1,25 @@
+# Requirements for the Machine-Learning repository (core packages needed to run
+# the voiceshopping assistant scripts).
+# Note: heavy ML libraries (torch, tensorflow, detectron2, etc.) are not
+# included here; add them to an extras file if you plan to run those projects.
+
+# Core dependencies for voiceshopping
+speechrecognition
+pyttsx3
+openai
+selenium
+pyaudio
+webdriver-manager
+requests
+
+# Helpful Windows tip: if installing PyAudio fails on Windows, try:
+#   pip install pipwin
+#   pipwin install pyaudio
+# or download a prebuilt wheel from https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyaudio
+
+# Optional / heavy packages in the repo (not installed by default):
+# torch
+# tensorflow
+# detectron2
+# pillow
+# opencv-python
