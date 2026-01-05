@@ -29,6 +29,9 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service
 from pathlib import Path
 from datetime import datetime
+# Load .env values into the environment if present
+from dotenv import load_dotenv
+load_dotenv()
 import time
 import re
 
@@ -57,16 +60,16 @@ CONFIG = {
     },
 
     "browser": {
-        "headless": False,  # Set True to hide browser
-        "timeout": 20
+        "headless": os.getenv('BROWSER_HEADLESS', '0').lower() in ('1', 'true', 'yes'),  # Set via .env or env vars
+        "timeout": int(os.getenv('BROWSER_TIMEOUT', '20'))
     },
 
     "voice": {
-        "rate": 150,        # Speaking speed
-        "volume": 1.0       # Volume level
+        "rate": int(os.getenv('VOICE_RATE', '150')),        # Speaking speed
+        "volume": float(os.getenv('VOICE_VOLUME', '1.0'))       # Volume level
     }
-}
 
+}
 
 # ============================================================================
 # VOICE INTERFACE - Handles all voice I/O
