@@ -25,6 +25,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.service import Service
+from pathlib import Path
+from datetime import datetime
 import time
 import re
 
@@ -33,27 +37,30 @@ import re
 # ============================================================================
 
 CONFIG = {
-    "openai_api_key": "PUT-YOUR-OPENAI-API-KEY-HERE",  # ← ADD YOUR KEY HERE
-    
+    # IMPORTANT: Do NOT hard-code secrets in source. Use environment variables
+    # or a secure secrets manager in production. The lines below pull sensitive
+    # values from the environment and provide safe placeholders for local testing.
+    "openai_api_key": os.getenv("OPENAI_API_KEY", "PUT-YOUR-OPENAI-API-KEY-HERE"),
+
     "coles": {
-        "username": "patelsuchit3110@gmail.com",
-        "password": "KingSP@3110",
-        "enabled": True,
+        "username": os.getenv("COLES_USERNAME", "your-coles-email@example.com"),
+        "password": os.getenv("COLES_PASSWORD", "your-coles-password"),
+        "enabled": False,
         "url": "https://www.coles.com.au/"
     },
-    
+
     "woolworths": {
-        "username": "patelsuchit3110@gmail.com",
-        "password": "KingSP@3110",
-        "enabled": True,
+        "username": os.getenv("WOOLWORTHS_USERNAME", "your-woolworths-email@example.com"),
+        "password": os.getenv("WOOLWORTHS_PASSWORD", "your-woolworths-password"),
+        "enabled": False,
         "url": "https://www.woolworths.com.au/"
     },
-    
+
     "browser": {
         "headless": False,  # Set True to hide browser
         "timeout": 20
     },
-    
+
     "voice": {
         "rate": 150,        # Speaking speed
         "volume": 1.0       # Volume level
@@ -206,10 +213,19 @@ class SupermarketAutomation:
         self.config = config
         self.voice = voice
         self.driver = None
-        
+
+        # Logs directory for debugging artifacts (screenshots, page source)
+        self.logs_dir = Path("voiceshopping/logs")
+        self.logs_dir.mkdir(parents=True, exist_ok=True)
+
+        # Allow enabling/disabling stores via environment variables for safety
+        self.config['coles']['enabled'] = os.getenv('COLES_ENABLED', str(self.config['coles'].get('enabled', False))).lower() in ('1', 'true', 'yes')
+        self.config['woolworths']['enabled'] = os.getenv('WOOLWORTHS_ENABLED', str(self.config['woolworths'].get('enabled', False))).lower() in ('1', 'true', 'yes')
+
         # Chrome options
         self.chrome_options = Options()
         if config['browser']['headless']:
+            # Keep headless off by default for debugging login flows
             self.chrome_options.add_argument('--headless')
         self.chrome_options.add_argument('--disable-blink-features=AutomationControlled')
         self.chrome_options.add_argument('--no-sandbox')
@@ -218,90 +234,266 @@ class SupermarketAutomation:
         self.chrome_options.add_experimental_option('useAutomationExtension', False)
         self.chrome_options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
     
+
+
     def create_driver(self) -> webdriver.Chrome:
-        """Create browser instance"""
-        driver = webdriver.Chrome(options=self.chrome_options)
+        """Create a Chrome WebDriver using webdriver-manager.
+
+        Returns a working Chrome WebDriver instance or raises an exception.
+        """
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=self.chrome_options)
         driver.implicitly_wait(self.config['browser']['timeout'])
-        driver.maximize_window()
+        try:
+            driver.maximize_window()
+        except Exception:
+            # Not all environments support maximize (headless servers)
+            pass
         return driver
+
+    # ---------- Debug helpers ----------
+    def _take_debug_artifacts(self, label: str) -> None:
+        """Save a screenshot and page source to the logs directory for debugging."""
+        try:
+            if not self.driver:
+                return
+            ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+            screenshot = self.logs_dir / f"{ts}_{label}.png"
+            page_html = self.logs_dir / f"{ts}_{label}.html"
+            self.driver.save_screenshot(str(screenshot))
+            page_html.write_text(self.driver.page_source, encoding='utf-8')
+            print(f"Saved debug artifacts: {screenshot}, {page_html}")
+        except Exception as e:
+            print(f"Failed to save debug artifacts: {e}")
+
+    def _close_cookie_banner(self) -> None:
+        """Try to close common cookie/privacy banners that block login elements."""
+        selectors = [
+            "//button[contains(., 'Accept') or contains(., 'Agree') or contains(., 'OK') or contains(., 'Allow')]",
+            "//button[contains(., 'Dismiss') or contains(., 'Close')]",
+            "//a[contains(., 'Accept') or contains(., 'Continue')]",
+        ]
+        for sel in selectors:
+            try:
+                btn = WebDriverWait(self.driver, 2).until(EC.element_to_be_clickable((By.XPATH, sel)))
+                btn.click()
+                print("Closed cookie/privacy banner")
+                time.sleep(1)
+            except Exception:
+                pass
+
+    def _find_input(self, possible_xpaths: list, timeout: int = 6):
+        """Try multiple xpaths to find an input element; return the first found."""
+        for xp in possible_xpaths:
+            try:
+                elm = WebDriverWait(self.driver, timeout).until(EC.presence_of_element_located((By.XPATH, xp)))
+                return elm
+            except Exception:
+                continue
+        return None
+
+    def _is_logged_in(self, store: str) -> bool:
+        """Heuristics to determine whether login succeeded by looking for account indicators."""
+        checks = [
+            "//a[contains(., 'Sign out') or contains(., 'Log out') or contains(., 'Sign Out')]",
+            "//a[contains(., 'My Account') or contains(., 'Account')]",
+            "//span[contains(@class,'user') or contains(@class,'account')]",
+            "//div[contains(@class,'account')]",
+        ]
+        for xp in checks:
+            try:
+                if self.driver.find_elements(By.XPATH, xp):
+                    return True
+            except Exception:
+                continue
+        return False
+
     
     def login_coles(self) -> bool:
-        """Login to Coles"""
+        """Login to Coles with robust selectors, cookie handling, and diagnostics."""
+        if not self.config['coles'].get('enabled', False):
+            self.voice.speak("Coles automation is disabled. Enable it via COLES_ENABLED environment variable or in CONFIG.")
+            return False
+
+        username = self.config['coles'].get('username')
+        password = self.config['coles'].get('password')
+        if not username or 'your-coles' in username or not password or 'your-coles' in password:
+            self.voice.speak("Coles credentials are not configured. Please set COLES_USERNAME and COLES_PASSWORD environment variables.")
+            return False
+
         try:
             self.voice.speak("Logging into your Coles account...")
             self.driver = self.create_driver()
             
             self.driver.get(self.config['coles']['url'])
-            time.sleep(3)
-            
-            # Click login button
-            login_btn = WebDriverWait(self.driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Log in')] | //a[contains(., 'Log in')]"))
-            )
-            login_btn.click()
             time.sleep(2)
-            
-            # Enter email
-            email_field = WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.ID, "email"))
-            )
-            email_field.clear()
-            email_field.send_keys(self.config['coles']['username'])
-            
-            # Enter password
-            password_field = self.driver.find_element(By.ID, "password")
-            password_field.clear()
-            password_field.send_keys(self.config['coles']['password'])
-            
-            # Submit
-            submit_btn = self.driver.find_element(By.XPATH, "//button[@type='submit']")
-            submit_btn.click()
-            time.sleep(5)
-            
-            self.voice.speak("Successfully logged into Coles")
-            return True
-            
+
+            # Attempt to close cookie/privacy banners that might block UI and try several login button selectors
+            self._close_cookie_banner()
+
+            login_selectors = [
+                "//button[contains(., 'Log in')]",
+                "//a[contains(., 'Log in')]",
+                "//button[contains(., 'Sign in')]",
+                "//a[contains(., 'Sign in')]",
+                "//button[contains(@aria-label,'log in') or contains(@aria-label,'sign in')]",
+            ]
+            login_btn = None
+            for xp in login_selectors:
+                try:
+                    login_btn = WebDriverWait(self.driver, 6).until(EC.element_to_be_clickable((By.XPATH, xp)))
+                    break
+                except Exception:
+                    continue
+
+            if login_btn:
+                login_btn.click()
+                time.sleep(1)
+
+            # Find email input with fallbacks
+            # Find email input with fallbacks
+            email_xpaths = [
+                "//input[@id='email']",
+                "//input[@name='email']",
+                "//input[@type='email']",
+                "//input[contains(@placeholder, 'Email') or contains(@placeholder, 'email')]",
+            ]
+            email_field = self._find_input(email_xpaths)
+            if email_field:
+                email_field.clear()
+                email_field.send_keys(self.config['coles']['username'])
+            else:
+                raise RuntimeError('Email input not found on Coles login page')
+            # Enter password with fallbacks
+            password_xpaths = [
+                "//input[@id='password']",
+                "//input[@name='password']",
+                "//input[@type='password']",
+                "//input[contains(@placeholder, 'Password') or contains(@placeholder, 'password')]",
+            ]
+            password_field = self._find_input(password_xpaths)
+            if password_field:
+                password_field.clear()
+                password_field.send_keys(self.config['coles']['password'])
+            else:
+                raise RuntimeError('Password input not found on Coles login page')
+
+            # Try to submit using button or ENTER key
+            try:
+                submit_btn = self.driver.find_element(By.XPATH, "//button[@type='submit']")
+                submit_btn.click()
+            except Exception:
+                password_field.send_keys(Keys.RETURN)
+
+            # Wait a bit and check logged-in status
+            time.sleep(4)
+            if self._is_logged_in('coles'):
+                self.voice.speak("Successfully logged into Coles")
+                return True
+            else:
+                self._take_debug_artifacts('coles_login_failed')
+                self.voice.speak("Login to Coles failed - I saved a screenshot for debugging.")
+                return False
+
         except Exception as e:
-            self.voice.speak("Sorry, I couldn't log into Coles. There might be a connection issue.")
             print(f"❌ Coles login error: {e}")
+            try:
+                self._take_debug_artifacts('coles_exception')
+            except Exception:
+                pass
+            self.voice.speak("Sorry, I couldn't log into Coles. Check credentials and try again.")
             return False
     
     def login_woolworths(self) -> bool:
-        """Login to Woolworths"""
+        """Login to Woolworths with robust selectors and diagnostics."""
+        if not self.config['woolworths'].get('enabled', False):
+            self.voice.speak("Woolworths automation is disabled. Enable it via WOOLWORTHS_ENABLED environment variable or in CONFIG.")
+            return False
+
+        username = self.config['woolworths'].get('username')
+        password = self.config['woolworths'].get('password')
+        if not username or 'your-woolworths' in username or not password or 'your-woolworths' in password:
+            self.voice.speak("Woolworths credentials are not configured. Please set WOOLWORTHS_USERNAME and WOOLWORTHS_PASSWORD environment variables.")
+            return False
+
         try:
             self.voice.speak("Logging into your Woolworths account...")
             self.driver = self.create_driver()
-            
+
             self.driver.get(self.config['woolworths']['url'])
-            time.sleep(3)
-            
-            # Click login
-            login_btn = WebDriverWait(self.driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Log in')] | //a[contains(., 'Log in')]"))
-            )
-            login_btn.click()
             time.sleep(2)
-            
-            # Enter credentials
-            email_field = WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.ID, "loginForm-email"))
-            )
-            email_field.send_keys(self.config['woolworths']['username'])
-            
-            password_field = self.driver.find_element(By.ID, "loginForm-password")
-            password_field.send_keys(self.config['woolworths']['password'])
-            
+
+            self._close_cookie_banner()
+
+            # Try a set of possible login selectors and click
+            login_selectors = [
+                "//button[contains(., 'Log in')]",
+                "//a[contains(., 'Log in')]",
+                "//button[contains(., 'Sign in')]",
+                "//a[contains(., 'Sign in')]",
+            ]
+            login_btn = None
+            for xp in login_selectors:
+                try:
+                    login_btn = WebDriverWait(self.driver, 6).until(EC.element_to_be_clickable((By.XPATH, xp)))
+                    break
+                except Exception:
+                    continue
+
+            if login_btn:
+                login_btn.click()
+                time.sleep(1)
+
+            # Find email and password inputs with fallbacks
+            email_xpaths = [
+                "//input[@id='loginForm-email']",
+                "//input[@name='email']",
+                "//input[@type='email']",
+                "//input[contains(@placeholder, 'Email') or contains(@placeholder, 'email')]",
+            ]
+            email_field = self._find_input(email_xpaths)
+            if email_field:
+                email_field.clear()
+                email_field.send_keys(username)
+            else:
+                raise RuntimeError('Email input not found on Woolworths login page')
+
+            password_xpaths = [
+                "//input[@id='loginForm-password']",
+                "//input[@name='password']",
+                "//input[@type='password']",
+                "//input[contains(@placeholder, 'Password') or contains(@placeholder, 'password')]",
+            ]
+            password_field = self._find_input(password_xpaths)
+            if password_field:
+                password_field.clear()
+                password_field.send_keys(password)
+            else:
+                raise RuntimeError('Password input not found on Woolworths login page')
+
             # Submit
-            submit_btn = self.driver.find_element(By.XPATH, "//button[@type='submit']")
-            submit_btn.click()
-            time.sleep(5)
-            
-            self.voice.speak("Successfully logged into Woolworths")
-            return True
-            
+            try:
+                submit_btn = self.driver.find_element(By.XPATH, "//button[@type='submit']")
+                submit_btn.click()
+            except Exception:
+                password_field.send_keys(Keys.RETURN)
+
+            time.sleep(4)
+            if self._is_logged_in('woolworths'):
+                self.voice.speak("Successfully logged into Woolworths")
+                return True
+            else:
+                self._take_debug_artifacts('woolworths_login_failed')
+                self.voice.speak("Login to Woolworths failed - screenshot saved for debugging.")
+                return False
+
         except Exception as e:
-            self.voice.speak("Sorry, I couldn't log into Woolworths. There might be a connection issue.")
             print(f"❌ Woolworths login error: {e}")
+            try:
+                self._take_debug_artifacts('woolworths_exception')
+            except Exception:
+                pass
+            self.voice.speak("Sorry, I couldn't log into Woolworths. Check credentials and try again.")
             return False
     
     def search_and_add_item(self, item_name: str, quantity: int, store: str) -> bool:
@@ -814,21 +1006,45 @@ if __name__ == "__main__":
         input("Press Enter to exit...")
         exit(1)
     
-    # Check ChromeDriver
+    # Check ChromeDriver - try Selenium Manager first, then fall back to webdriver-manager
     print("\n🔍 Checking ChromeDriver...")
+
+    # Helper to try creating a driver using webdriver-manager
+    def _try_with_webdriver_manager():
+        try:
+            opts = Options()
+            # Headless helps during automated checks, but some sites require non-headless for JS
+            opts.add_argument('--headless=new')
+            opts.add_argument('--no-sandbox')
+            opts.add_argument('--disable-dev-shm-usage')
+            service = Service(ChromeDriverManager().install())
+            d = webdriver.Chrome(service=service, options=opts)
+            d.quit()
+            return True, None
+        except Exception as e:
+            return False, e
+
+    # First attempt: let Selenium Manager create a driver (webdriver.Chrome())
     try:
         test_driver = webdriver.Chrome()
         test_driver.quit()
-        print("✓ ChromeDriver found and working\n")
-    except Exception as e:
-        print(f"\n❌ ChromeDriver not found or not working!")
-        print(f"Error: {e}\n")
-        print("📥 To install ChromeDriver:")
-        print("   Method 1: pip install webdriver-manager")
-        print("   Method 2: Download from https://chromedriver.chromium.org/")
-        print("   Make sure Chrome browser is installed\n")
-        input("Press Enter to exit...")
-        exit(1)
+        print("✓ ChromeDriver found and working (Selenium Manager)\n")
+    except Exception as selenium_err:
+        print(f"Selenium Manager failed: {selenium_err}")
+        print("Attempting to obtain ChromeDriver using webdriver-manager...")
+
+        ok, err = _try_with_webdriver_manager()
+        if ok:
+            print("✓ ChromeDriver installed and working via webdriver-manager\n")
+        else:
+            print(f"\n❌ ChromeDriver not found or not working!\nReason: {err}\n")
+            print("📥 To install ChromeDriver manually:")
+            print("   - Method 1: pip install webdriver-manager (recommended)")
+            print("   - Method 2: Download matching ChromeDriver from https://chromedriver.chromium.org/")
+            print("   - Ensure Google Chrome is installed and the driver version matches your browser")
+            print("If you installed 'webdriver-manager' but still see errors, try running this script as an admin or check firewall/anti-virus settings.\n")
+            input("Press Enter to exit...")
+            exit(1)
     
     # Check microphone
     print("🎤 Checking microphone...")
@@ -839,7 +1055,27 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"⚠️  Microphone issue: {e}")
         print("Make sure a microphone is connected and permissions are granted\n")
-    
+
+    # Validate store configuration if any store enabled
+    def _validate_store_config():
+        issues = []
+        for store in ('coles', 'woolworths'):
+            enabled = CONFIG.get(store, {}).get('enabled', False)
+            if enabled:
+                user = CONFIG.get(store, {}).get('username')
+                pwd = CONFIG.get(store, {}).get('password')
+                if not user or 'your-' in str(user) or not pwd or 'your-' in str(pwd):
+                    issues.append((store, 'credentials_missing'))
+        return issues
+
+    store_issues = _validate_store_config()
+    if store_issues:
+        print("\n⚠️  Store configuration issues detected:")
+        for s, issue in store_issues:
+            print(f" - {s}: missing credentials (set via environment variables {s.upper()}_USERNAME/{s.upper()}_PASSWORD or in CONFIG)")
+        print("\nYou can either set the environment variables, edit the CONFIG to add credentials, or disable the store by setting {STORE}_ENABLED=0\n")
+        input("Press Enter to continue without attempting store logins... ")
+
     # Start assistant
     print("🚀 Starting Voice Shopping Assistant...\n")
     time.sleep(1)
