@@ -80,16 +80,85 @@ class VoiceInterface:
     
     def __init__(self, config: dict):
         self.recognizer = sr.Recognizer()
-        self.tts = pyttsx3.init()
-        self.tts.setProperty('rate', config['voice']['rate'])
-        self.tts.setProperty('volume', config['voice']['volume'])
-        
-        # Set voice to female if available
-        voices = self.tts.getProperty('voices')
-        for voice in voices:
-            if 'female' in voice.name.lower() or 'zira' in voice.name.lower():
-                self.tts.setProperty('voice', voice.id)
+        self.tts = None
+        self.driver_used = None
+
+        # Try multiple backend drivers to improve cross-platform reliability
+        driver_candidates = [None, 'sapi5']  # None = default driver, 'sapi5' is Windows SAPI
+        for drv in driver_candidates:
+            try:
+                engine = pyttsx3.init(driverName=drv) if drv else pyttsx3.init()
+                engine.setProperty('rate', config['voice']['rate'])
+                engine.setProperty('volume', config['voice']['volume'])
+
+                # Prefer a female voice if available
+                try:
+                    voices = engine.getProperty('voices')
+                    for v in voices:
+                        if 'female' in v.name.lower() or 'zira' in v.name.lower():
+                            engine.setProperty('voice', v.id)
+                            break
+                except Exception:
+                    pass
+
+                self.tts = engine
+                self.driver_used = drv if drv else 'default'
+                print(f"Initialized TTS engine using driver: {self.driver_used}")
                 break
+            except Exception as e:
+                print(f"Unable to initialize TTS driver '{drv}': {e}")
+                continue
+
+        if not self.tts:
+            print("WARNING: No TTS engine initialized. Speech will be silent until a TTS driver is available.")
+
+    def tts_diagnostics(self) -> None:
+        """Print diagnostics and attempt to play a short test phrase."""
+        print("=== TTS diagnostics ===")
+        print(f"Driver used: {self.driver_used}")
+        try:
+            if self.tts:
+                try:
+                    voices = self.tts.getProperty('voices')
+                    print("Available voices:")
+                    for v in voices:
+                        print(f" - {v.name} (id={v.id})")
+                except Exception as e:
+                    print(f"Could not list voices: {e}")
+
+                try:
+                    print("Rate:", self.tts.getProperty('rate'))
+                    print("Volume:", self.tts.getProperty('volume'))
+                except Exception:
+                    pass
+            else:
+                print("No pyttsx3 engine is currently initialized.")
+        except Exception as e:
+            print(f"TTS diagnostics read error: {e}")
+
+        # Try speaking a short phrase using a short-lived engine
+        try:
+            test_phrase = "This is a TTS diagnostic test. Please listen for a short voice message."
+            print("Attempting to play a test phrase...")
+            try:
+                engine = pyttsx3.init(driverName=self.driver_used if self.driver_used and self.driver_used != 'default' else None)
+            except Exception:
+                engine = pyttsx3.init()
+
+            try:
+                engine.say(test_phrase)
+                engine.runAndWait()
+                print("If you heard the test phrase, TTS is functioning.")
+            except Exception as e:
+                print(f"Failed to play test phrase: {e}")
+            finally:
+                try:
+                    engine.stop()
+                    del engine
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"TTS diagnostics failure: {e}")
     
     def speak(self, text: str, show_text: bool = True):
         """Convert text to speech.
@@ -127,6 +196,12 @@ class VoiceInterface:
 
         except Exception as e:
             print(f"TTS error: {e}")
+            try:
+                print("Running TTS diagnostics to identify issues...")
+                self.tts_diagnostics()
+                print("If you still cannot hear audio, check system volume/output device and that a TTS backend (e.g., SAPI5 on Windows) is available.")
+            except Exception:
+                pass
 
     def listen(self, prompt: Optional[str] = None, timeout: int = 10) -> str:
         """Convert speech to text. Adds short delays to avoid picking up TTS audio."""
