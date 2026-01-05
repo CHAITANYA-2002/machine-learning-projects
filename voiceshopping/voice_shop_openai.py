@@ -92,19 +92,57 @@ class VoiceInterface:
                 break
     
     def speak(self, text: str, show_text: bool = True):
-        """Convert text to speech"""
+        """Convert text to speech.
+
+        Uses a short-lived pyttsx3 engine to avoid audio device/resource locking
+        issues that can cause speech to only be played once on some systems.
+        """
         if show_text:
             print(f"\n🤖 Assistant: {text}")
-        self.tts.say(text)
-        self.tts.runAndWait()
-    
+
+        try:
+            # Stop any currently-playing persistent engine (defensive)
+            try:
+                self.tts.stop()
+            except Exception:
+                pass
+
+            # Create a fresh engine per utterance to avoid driver/resource state bugs
+            engine = pyttsx3.init()
+            # copy main engine's voice properties if available
+            try:
+                engine.setProperty('rate', self.tts.getProperty('rate'))
+                engine.setProperty('volume', self.tts.getProperty('volume'))
+                engine.setProperty('voice', self.tts.getProperty('voice'))
+            except Exception:
+                pass
+
+            engine.say(text)
+            engine.runAndWait()
+            engine.stop()
+            del engine
+
+            # Small pause to ensure microphone/device stability before next listen
+            time.sleep(0.25)
+
+        except Exception as e:
+            print(f"TTS error: {e}")
+
     def listen(self, prompt: Optional[str] = None, timeout: int = 10) -> str:
-        """Convert speech to text"""
+        """Convert speech to text. Adds short delays to avoid picking up TTS audio."""
         if prompt:
             self.speak(prompt)
-        
+
+        # Ensure any TTS audio has finished and stop persistent engine as a fallback
+        try:
+            self.tts.stop()
+        except Exception:
+            pass
+        time.sleep(0.25)
+
         with sr.Microphone() as source:
             print("\n🎤 Listening...")
+            # Give microphone a moment to settle after TTS playback
             self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
             try:
                 audio = self.recognizer.listen(source, timeout=timeout, phrase_time_limit=20)
