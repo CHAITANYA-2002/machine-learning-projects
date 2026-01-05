@@ -11,6 +11,7 @@ selenium
 pyaudio
 webdriver-manager
 requests
+python-dotenv
 
 # Helpful Windows tip: if installing PyAudio fails on Windows, try:
 #   pip install pipwin
