@@ -1,0 +1,15 @@
+# ESRGAN super-resolution inference.
+#   python -m venv .venv && source .venv/bin/activate   (Windows: .venv\Scripts\activate)
+#   pip install -r requirements.txt
+#
+# Pretrained RRDBNet weights are NOT included -- see docs/PROJECT_GUIDE.md for
+# where to obtain them and where to place them.
+
+numpy>=1.23,<2.0
+opencv-python>=4.7
+torch>=2.0
+torchvision>=0.15
+
+# Notebook
+jupyter>=1.0
+notebook>=7.0

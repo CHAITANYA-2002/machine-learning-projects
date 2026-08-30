@@ -1,0 +1,67 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ---- Virtual environments ----
+.venv/
+venv/
+env/
+ENV/
+
+# ---- Jupyter ----
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+profile_default/
+ipython_config.py
+
+# ---- Testing / linting caches ----
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# ---- Editors / OS ----
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- Secrets ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---- Large / regenerable ML artifacts ----
+# Datasets and model weights are documented in each project README,
+# not committed. See docs/DATA_SOURCES.md for retrieval instructions.
+*.h5
+*.hdf5
+# Exception: 11-neural-net-experiments ships its trained models deliberately;
+# they are small (5MB total) and the notebook demonstrates loading them.
+!11-neural-net-experiments/models/**
+*.ckpt
+*.pth
+*.pt
+*.pkl
+*.joblib
+*.onnx
+*.tflite
+
+# ---- Scratch ----
+Untitled*.ipynb
+*.log
+tmp/
+scratch/

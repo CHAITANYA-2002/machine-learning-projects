@@ -1,0 +1,12 @@
+# Keras architecture experiments on synthetic data.
+#   python -m venv .venv && source .venv/bin/activate   (Windows: .venv\Scripts\activate)
+#   pip install -r requirements.txt
+
+numpy>=1.23,<2.0
+pandas>=2.0,<3.0
+scikit-learn>=1.3,<2.0
+tensorflow>=2.13,<3.0
+
+# Notebook
+jupyter>=1.0
+notebook>=7.0
