@@ -1,6 +1,6 @@
 import pandas as pd
 
-from fake_news_model import combine_text, validate_dataset
+from src.fake_news_model import combine_text, validate_dataset
 
 
 def test_combine_text_uses_title_and_body_and_handles_missing_values():

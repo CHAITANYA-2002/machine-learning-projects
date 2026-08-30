@@ -7,7 +7,7 @@ import pandas as pd
 from sklearn.metrics import classification_report, f1_score, precision_score, recall_score
 from sklearn.model_selection import train_test_split
 
-from fake_news_model import build_pipeline, combine_text, validate_dataset
+from src.fake_news_model import build_pipeline, combine_text, validate_dataset
 
 
 def main() -> None:

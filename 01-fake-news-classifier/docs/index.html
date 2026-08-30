@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fake News Classifier — LSTM Walkthrough</title>
+<meta name="description" content="Classifying news articles as FAKE or REAL with a Keras LSTM. A complete, diagrammed walkthrough of the dataset, text pipeline, architecture, and results.">
+<style>
+  :root {
+    --bg:#fbfaf8; --surface:#ffffff; --border:#e4e1dc;
+    --ink:#22201d; --ink-soft:#57534e; --muted:#8a847c;
+    --accent:#2f6f4e; --accent-soft:#eaf2ed;
+    --blue:#3a6ea5; --blue-soft:#e8eef6;
+    --amber:#b4532a; --amber-soft:#fdf1e7;
+    --code-bg:#f5f3f0; --panel:#f6f5f3;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --serif:ui-serif,Georgia,Cambria,"Times New Roman",serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:#161513; --surface:#1e1d1a; --border:#35322d;
+      --ink:#ece8e1; --ink-soft:#b8b2a8; --muted:#8a847c;
+      --accent:#7fc0a0; --accent-soft:#1c2a23;
+      --blue:#8ab4de; --blue-soft:#1a2330;
+      --amber:#e0956c; --amber-soft:#2b211a;
+      --code-bg:#24221f; --panel:#22201d;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#161513; --surface:#1e1d1a; --border:#35322d;
+    --ink:#ece8e1; --ink-soft:#b8b2a8; --muted:#8a847c;
+    --accent:#7fc0a0; --accent-soft:#1c2a23;
+    --blue:#8ab4de; --blue-soft:#1a2330;
+    --amber:#e0956c; --amber-soft:#2b211a;
+    --code-bg:#24221f; --panel:#22201d;
+  }
+
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans);
+    font-size:16px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:800px; margin:0 auto; padding:0 24px 96px; }
+
+  header.masthead { padding:72px 0 40px; border-bottom:1px solid var(--border); margin-bottom:40px; }
+  .eyebrow { font-family:var(--mono); font-size:12px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 18px; }
+  h1 { font-family:var(--serif); font-size:clamp(30px,5.5vw,46px); line-height:1.15;
+    letter-spacing:-.02em; margin:0 0 20px; font-weight:600; }
+  .standfirst { font-size:19px; line-height:1.6; color:var(--ink-soft); margin:0 0 28px; max-width:60ch; }
+  .meta-row { display:flex; flex-wrap:wrap; gap:10px; }
+  .chip { font-family:var(--mono); font-size:12px; padding:5px 11px; border:1px solid var(--border);
+    border-radius:999px; color:var(--ink-soft); background:var(--surface); white-space:nowrap; }
+  .chip.pass { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+  .chip.key { border-color:var(--blue); color:var(--blue); background:var(--blue-soft); }
+
+  h2 { font-family:var(--serif); font-size:27px; letter-spacing:-.01em; margin:64px 0 8px;
+    font-weight:600; scroll-margin-top:24px; }
+  h2 .num { font-family:var(--mono); font-size:13px; color:var(--accent); display:block;
+    margin-bottom:6px; letter-spacing:.1em; font-weight:400; }
+  h3 { font-size:17px; margin:34px 0 10px; font-weight:650; letter-spacing:-.005em; }
+  p { margin:0 0 18px; }
+  a { color:var(--accent); text-decoration-thickness:1px; text-underline-offset:2px; }
+  strong { font-weight:650; }
+  code { font-family:var(--mono); font-size:.87em; background:var(--code-bg); padding:2px 5px; border-radius:4px; }
+  ul { margin:0 0 18px; padding-left:22px; }
+  li { margin-bottom:8px; }
+  li::marker { color:var(--muted); }
+
+  figure { margin:28px 0; padding:16px; background:var(--surface); border:1px solid var(--border); border-radius:10px; }
+  figure img { width:100%; height:auto; display:block; border-radius:4px; }
+  figure svg { width:100%; height:auto; display:block; }
+  figcaption { font-size:13.5px; color:var(--muted); margin-top:12px; line-height:1.55; }
+
+  .table-scroll { overflow-x:auto; margin:24px 0; }
+  table { width:100%; border-collapse:collapse; font-size:14.5px; min-width:440px; }
+  th,td { text-align:left; padding:11px 14px; border-bottom:1px solid var(--border); vertical-align:top; }
+  th { font-size:11.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted);
+    font-weight:600; border-bottom-width:1.5px; }
+  td.num { font-family:var(--mono); font-size:13px; white-space:nowrap; text-align:right; }
+  th.num { text-align:right; }
+  td.hi { color:var(--accent); font-weight:650; }
+  tbody tr:last-child td { border-bottom:none; }
+
+  .note { border-left:3px solid var(--accent); background:var(--accent-soft); padding:16px 20px;
+    border-radius:0 8px 8px 0; margin:24px 0; font-size:15px; }
+  .note.blue { border-left-color:var(--blue); background:var(--blue-soft); }
+  .note.amber { border-left-color:var(--amber); background:var(--amber-soft); }
+  .note p:last-child { margin-bottom:0; }
+  .note .label { display:block; font-family:var(--mono); font-size:11px; letter-spacing:.11em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:7px; }
+  .note.blue .label { color:var(--blue); }
+  .note.amber .label { color:var(--amber); }
+
+  pre { background:var(--code-bg); border:1px solid var(--border); border-radius:8px;
+    padding:16px 18px; overflow-x:auto; margin:20px 0; }
+  pre code { background:none; padding:0; font-size:13px; line-height:1.6; }
+
+  nav.toc { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px 24px; }
+  nav.toc h2 { font-size:12px; font-family:var(--mono); letter-spacing:.11em; text-transform:uppercase;
+    color:var(--muted); margin:0 0 12px; font-weight:600; }
+  nav.toc ol { margin:0; padding-left:20px; font-size:14.5px; }
+  nav.toc li { margin-bottom:6px; }
+  nav.toc a { text-decoration:none; color:var(--ink-soft); }
+  nav.toc a:hover { color:var(--accent); text-decoration:underline; }
+
+  .cards { display:grid; gap:12px; margin:24px 0; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 18px; }
+  .card .k { font-family:var(--mono); font-size:22px; color:var(--accent); display:block; letter-spacing:-.02em; }
+  .card.blue .k { color:var(--blue); }
+  .card.amber .k { color:var(--amber); }
+  .card .v { font-size:13px; color:var(--muted); margin-top:4px; display:block; line-height:1.45; }
+
+  .svg-ink { fill:var(--ink); }
+  .svg-muted { fill:var(--muted); }
+  .svg-mono { font-family:var(--mono); font-size:12px; }
+  .svg-sans { font-family:var(--sans); font-size:12.5px; }
+
+  footer { margin-top:72px; padding-top:28px; border-top:1px solid var(--border); font-size:14px; color:var(--muted); }
+  footer a { color:var(--ink-soft); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Portfolio · Project 01 · October 2022</p>
+  <h1>Classifying news articles as FAKE or REAL with an LSTM</h1>
+  <p class="standfirst">
+    A complete walkthrough of a recurrent neural network built in Keras: the
+    dataset, how text becomes tensors, the architecture layer by layer, the
+    training run, and what the results mean.
+  </p>
+  <div class="meta-row">
+    <span class="chip key">82.9% held-out accuracy</span>
+    <span class="chip">6,335 articles</span>
+    <span class="chip">11.2M parameters</span>
+    <span class="chip pass">31 tests passing</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#problem">The problem</a></li>
+    <li><a href="#pipeline">The pipeline at a glance</a></li>
+    <li><a href="#data">The dataset</a></li>
+    <li><a href="#label">Encoding the label</a></li>
+    <li><a href="#clean">Cleaning the text</a></li>
+    <li><a href="#numbers">From words to numbers</a></li>
+    <li><a href="#network">The network</a></li>
+    <li><a href="#training">Training</a></li>
+    <li><a href="#results">Results</a></li>
+    <li><a href="#running">Running it</a></li>
+    <li><a href="#scope">Scope</a></li>
+  </ol>
+</nav>
+
+<h2 id="problem"><span class="num">01</span>The problem</h2>
+
+<p>
+  A dataset of news articles, each carrying a label of <code>FAKE</code> or
+  <code>REAL</code>. The task is to read an article's text and predict its label.
+</p>
+
+<figure>
+<svg viewBox="0 0 700 120" role="img" aria-label="A news article feeds into a model which outputs FAKE or REAL">
+  <rect x="8" y="34" width="170" height="52" rx="9" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.4"/>
+  <text x="93" y="58" text-anchor="middle" class="svg-sans svg-ink">News article</text>
+  <text x="93" y="76" text-anchor="middle" class="svg-mono svg-muted">headline + body</text>
+  <path d="M186 60 H255" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#a1)"/>
+  <rect x="263" y="34" width="130" height="52" rx="9" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.4"/>
+  <text x="328" y="58" text-anchor="middle" class="svg-sans svg-ink">LSTM model</text>
+  <text x="328" y="76" text-anchor="middle" class="svg-mono svg-muted">11.2M params</text>
+  <path d="M401 52 H500" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#a1)"/>
+  <path d="M401 68 H500" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#a1)"/>
+  <rect x="508" y="20" width="110" height="36" rx="9" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.4"/>
+  <text x="563" y="43" text-anchor="middle" class="svg-mono svg-ink">FAKE</text>
+  <rect x="508" y="66" width="110" height="36" rx="9" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.4"/>
+  <text x="563" y="89" text-anchor="middle" class="svg-mono svg-ink">REAL</text>
+  <defs>
+    <marker id="a1" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0 0 L9 4.5 L0 9 z" fill="var(--muted)"/>
+    </marker>
+  </defs>
+</svg>
+<figcaption>The task in one picture: text in, one of two labels out.</figcaption>
+</figure>
+
+<p>
+  This is <strong>text classification</strong> — learning which patterns of
+  language go with which label. A neural network suits it because word order
+  carries meaning: <em>"officials denied the report"</em> and <em>"the report
+  denied officials"</em> use identical words and mean different things.
+</p>
+
+<p>
+  <strong>Why an LSTM.</strong> A Long Short-Term Memory network reads a sentence
+  one word at a time, carrying a running memory of what it has seen. Unlike a
+  bag-of-words model it is sensitive to order and to dependencies that stretch
+  across a whole sentence.
+</p>
+
+<h2 id="pipeline"><span class="num">02</span>The pipeline at a glance</h2>
+
+<p>Eight stages take raw CSV text to a prediction.</p>
+
+<figure>
+  <img src="assets/pipeline_overview.png" alt="Eight-stage pipeline from CSV through cleaning, hashing, padding, embedding, LSTM and dense layer to a FAKE or REAL prediction">
+  <figcaption>Every stage, left to right. The three green stages are the network itself.</figcaption>
+</figure>
+
+<h2 id="data"><span class="num">03</span>The dataset</h2>
+
+<p><code>fake_or_real_news.csv</code> — 6,335 news articles in four columns.</p>
+
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Column</th><th>Contents</th><th>Used?</th></tr></thead>
+  <tbody>
+    <tr><td><code>Unnamed: 0</code></td><td>The original CSV row index</td><td>No — dropped</td></tr>
+    <tr><td><code>title</code></td><td>The article headline</td><td>Yes</td></tr>
+    <tr><td><code>text</code></td><td>The article body</td><td>Yes</td></tr>
+    <tr><td><code>label</code></td><td><code>FAKE</code> or <code>REAL</code></td><td>Target</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+  <code>Unnamed: 0</code> is the index pandas wrote when the CSV was saved — a
+  row counter, not information about the article — so it is dropped before
+  anything else happens.
+</p>
+
+<div class="note blue">
+  <span class="label">The corpus is not in this repository</span>
+  <p>
+    It is third-party news text with unclear redistribution terms. The
+    <code>data/README.md</code> file records what it is and how to supply your
+    own. Every figure on this page is built from the original run's saved
+    outputs, so the walkthrough stands without it.
+  </p>
+</div>
+
+<h2 id="label"><span class="num">04</span>Encoding the label</h2>
+
+<p>A network works in numbers, so <code>FAKE</code> and <code>REAL</code> become 0 and 1.</p>
+
+<figure>
+<svg viewBox="0 0 700 150" role="img" aria-label="The label column is one-hot encoded into two columns and the REAL column is kept as the target">
+  <rect x="6" y="52" width="150" height="46" rx="8" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.3"/>
+  <text x="81" y="72" text-anchor="middle" class="svg-mono svg-ink">label</text>
+  <text x="81" y="89" text-anchor="middle" class="svg-mono svg-muted">REAL, FAKE, ...</text>
+  <path d="M164 75 H222" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#a2)"/>
+  <text x="193" y="66" text-anchor="middle" class="svg-mono svg-muted" font-size="10">get_dummies</text>
+  <rect x="230" y="14" width="150" height="46" rx="8" fill="var(--panel)" stroke="var(--muted)" stroke-width="1.3"/>
+  <text x="305" y="34" text-anchor="middle" class="svg-mono svg-ink">FAKE</text>
+  <text x="305" y="51" text-anchor="middle" class="svg-mono svg-muted">0, 1, 0, ...</text>
+  <rect x="230" y="90" width="150" height="46" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.6"/>
+  <text x="305" y="110" text-anchor="middle" class="svg-mono svg-ink">REAL</text>
+  <text x="305" y="127" text-anchor="middle" class="svg-mono svg-muted">1, 0, 1, ...</text>
+  <path d="M388 113 H452" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#a3)"/>
+  <rect x="460" y="90" width="228" height="46" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.6"/>
+  <text x="574" y="110" text-anchor="middle" class="svg-mono svg-ink">y = [1, 0, 1, ...]</text>
+  <text x="574" y="127" text-anchor="middle" class="svg-mono svg-muted">1 = REAL · 0 = FAKE</text>
+  <text x="466" y="34" class="svg-mono svg-muted" font-size="10.5">the FAKE column is redundant —</text>
+  <text x="466" y="50" class="svg-mono svg-muted" font-size="10.5">it is just the opposite of REAL</text>
+  <defs>
+    <marker id="a2" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0 0 L9 4.5 L0 9 z" fill="var(--muted)"/></marker>
+    <marker id="a3" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0 0 L9 4.5 L0 9 z" fill="var(--accent)"/></marker>
+  </defs>
+</svg>
+<figcaption>
+  <code>get_dummies</code> produces one column per label value, ordered
+  alphabetically. Keeping column 1 gives a single binary target.
+</figcaption>
+</figure>
+
+<h2 id="clean"><span class="num">05</span>Cleaning the text</h2>
+
+<p>
+  Raw headlines carry punctuation, capitalisation, digits, and common words that
+  add little signal. Cleaning normalises all of it in two passes.
+</p>
+
+<figure>
+<svg viewBox="0 0 700 190" role="img" aria-label="Three-stage text cleaning from raw headline to cleaned string">
+  <rect x="80" y="8" width="540" height="42" rx="8" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.3"/>
+  <text x="350" y="34" text-anchor="middle" class="svg-mono svg-ink">You Can Smell Hillary's Fear</text>
+  <path d="M350 54 V76" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#a4)"/>
+  <text x="360" y="70" class="svg-mono svg-muted" font-size="10.5">replace every non-letter with a space</text>
+  <rect x="80" y="82" width="540" height="42" rx="8" fill="var(--panel)" stroke="var(--muted)" stroke-width="1.3"/>
+  <text x="350" y="108" text-anchor="middle" class="svg-mono svg-ink">You Can Smell Hillary s Fear</text>
+  <path d="M350 128 V150" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#a4)"/>
+  <text x="360" y="144" class="svg-mono svg-muted" font-size="10.5">lowercase, stem, drop stop-words</text>
+  <rect x="80" y="156" width="540" height="42" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.4"/>
+  <text x="350" y="182" text-anchor="middle" class="svg-mono svg-ink">yu cn sell hllr  fer</text>
+  <defs>
+    <marker id="a4" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0 0 L9 4.5 L0 9 z" fill="var(--muted)"/></marker>
+  </defs>
+</svg>
+<figcaption>One headline through both cleaning passes.</figcaption>
+</figure>
+
+<p>
+  <strong>Pass 1 — strip non-letters.</strong> A regex replaces anything outside
+  <code>a–z</code> and <code>A–Z</code> with a space. Apostrophes, commas, and
+  digits all go, leaving words separated by whitespace.
+</p>
+
+<p>
+  <strong>Pass 2 — stem and drop stop-words.</strong> Each headline goes through
+  NLTK's Porter stemmer and English stop-word list. Because that list includes
+  eight single-character entries (<code>a d i m o s t y</code>), the pass also
+  compresses each headline into a shorter form while keeping word boundaries
+  intact.
+</p>
+
+<figure>
+  <img src="assets/cleaning_examples.png" alt="Table of six real headlines before and after cleaning, with the percentage each was shortened by">
+  <figcaption>
+    The cleaning step applied to real headlines from the corpus. This is
+    reproduced as <code>legacy_char_clean()</code> in <code>src/preprocessing.py</code>
+    and pinned by tests against the original saved output.
+  </figcaption>
+</figure>
+
+<h2 id="numbers"><span class="num">06</span>From words to numbers</h2>
+
+<figure>
+  <img src="assets/text_to_tensor.png" alt="Six-step trace of one headline from raw text through cleaning, hashing, padding and embedding into a 58 by 100 float array">
+  <figcaption>Every transformation one headline undergoes before the network sees it.</figcaption>
+</figure>
+
+<h3>Hashing words to integers</h3>
+
+<p>Keras <code>one_hot</code> assigns each word an integer in <code>[1, 100000)</code>.</p>
+
+<div class="note amber">
+  <span class="label">Naming note</span>
+  <p>
+    Despite the name, <code>one_hot</code> returns <strong>one integer per
+    word</strong>, not a one-hot vector. It applies a hash function, so no
+    vocabulary object is stored and the mapping cannot be inverted afterwards.
+  </p>
+</div>
+
+<h3>Padding to a fixed length</h3>
+
+<p>
+  An LSTM needs every sequence the same length. The longest headline in the
+  corpus is <strong>58 tokens</strong>, so every sequence is padded to 58.
+</p>
+
+<figure>
+  <img src="assets/padding.png" alt="Six sequences of differing lengths right-aligned within a 58-slot window, with grey padding filling the front">
+  <figcaption>
+    <code>padding='pre'</code> puts zeros at the front. A recurrent network's
+    final state is most influenced by what it read last, so ending on real words
+    rather than padding gives a better summary.
+  </figcaption>
+</figure>
+
+<p>After this stage the whole corpus is a single integer matrix of shape <code>(6335, 58)</code>.</p>
+
+<h2 id="network"><span class="num">07</span>The network</h2>
+
+<figure>
+  <img src="assets/architecture.png" alt="Five-layer architecture diagram with output shapes and parameter counts totalling 11,202,501">
+  <figcaption>Every layer, its output shape, and its parameter count.</figcaption>
+</figure>
+
+<h3>What each layer does</h3>
+
+<ul>
+  <li><strong><code>Embedding(100000, 100)</code></strong> — a lookup table
+    holding one learned 100-dimensional vector per word ID. Words used in similar
+    contexts drift toward similar vectors during training, so the model learns
+    meaning rather than treating word #4505 and #4506 as unrelated.</li>
+  <li><strong><code>Dropout(0.5)</code></strong> — randomly zeroes half the
+    values on each training pass, so the network cannot lean too hard on any
+    single feature.</li>
+  <li><strong><code>LSTM(500)</code></strong> — reads all 58 positions in order,
+    updating an internal memory at each step, and emits one 500-value summary of
+    the sequence. Its gates decide what to keep and what to forget.</li>
+  <li><strong><code>Dense(1, sigmoid)</code></strong> — collapses those 500
+    values into a single number between 0 and 1: the probability the article is
+    REAL.</li>
+</ul>
+
+<h3>Where the parameters live</h3>
+
+<figure>
+  <img src="assets/parameter_budget.png" alt="Horizontal log-scale bar chart showing the embedding layer holds 10 million of the 11.2 million parameters">
+  <figcaption>
+    The embedding table stores 100 numbers for each of 100,000 possible word IDs,
+    whether or not that ID ever appears in the data.
+  </figcaption>
+</figure>
+
+<div class="cards">
+  <div class="card"><span class="k">10,000,000</span><span class="v">Embedding parameters (89.3%)</span></div>
+  <div class="card blue"><span class="k">1,202,000</span><span class="v">LSTM parameters (10.7%)</span></div>
+  <div class="card amber"><span class="k">501</span><span class="v">Dense parameters</span></div>
+  <div class="card"><span class="k">11,202,501</span><span class="v">Total</span></div>
+</div>
+
+<p>
+  <strong>Loss function.</strong> Binary cross-entropy, the standard pairing with
+  a sigmoid output. It penalises confident wrong answers far more than uncertain
+  ones — predicting 0.99 for a FAKE article costs much more than predicting 0.55.
+</p>
+
+<h2 id="training"><span class="num">08</span>Training</h2>
+
+<figure>
+  <img src="assets/data_split.png" alt="The 6,335 article dataset split into 5,068 training and 1,267 test articles">
+  <figcaption>
+    80% trains the model; the remaining 20% is never trained on, so scoring
+    against it shows whether the model generalises or has memorised.
+  </figcaption>
+</figure>
+
+<figure>
+<svg viewBox="0 0 700 132" role="img" aria-label="Training loop: take a batch, predict, compute loss, update weights, repeat, then score on the held-out set">
+  <rect x="6" y="46" width="112" height="44" rx="8" fill="var(--panel)" stroke="var(--muted)" stroke-width="1.3"/>
+  <text x="62" y="65" text-anchor="middle" class="svg-mono svg-ink" font-size="11">take 64</text>
+  <text x="62" y="80" text-anchor="middle" class="svg-mono svg-muted" font-size="11">articles</text>
+  <path d="M126 68 H160" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#a5)"/>
+  <rect x="168" y="46" width="96" height="44" rx="8" fill="var(--panel)" stroke="var(--muted)" stroke-width="1.3"/>
+  <text x="216" y="72" text-anchor="middle" class="svg-mono svg-ink" font-size="11">predict</text>
+  <path d="M272 68 H306" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#a5)"/>
+  <rect x="314" y="46" width="112" height="44" rx="8" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.3"/>
+  <text x="370" y="65" text-anchor="middle" class="svg-mono svg-ink" font-size="11">compute</text>
+  <text x="370" y="80" text-anchor="middle" class="svg-mono svg-muted" font-size="11">loss</text>
+  <path d="M434 68 H468" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#a5)"/>
+  <rect x="476" y="46" width="118" height="44" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.3"/>
+  <text x="535" y="65" text-anchor="middle" class="svg-mono svg-ink" font-size="11">update</text>
+  <text x="535" y="80" text-anchor="middle" class="svg-mono svg-muted" font-size="11">11.2M weights</text>
+  <path d="M594 68 H640 V112 H62 V96" stroke="var(--muted)" stroke-width="1.3" fill="none" stroke-dasharray="4 3" marker-end="url(#a5)"/>
+  <text x="350" y="126" text-anchor="middle" class="svg-mono svg-muted" font-size="10.5">80 batches per epoch × 20 epochs</text>
+  <defs>
+    <marker id="a5" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0 0 L9 4.5 L0 9 z" fill="var(--muted)"/></marker>
+  </defs>
+</svg>
+<figcaption>
+  One epoch is a full pass over the training set. With 5,068 rows and batches of
+  64 that is 80 batches per epoch, about 30 seconds each — roughly ten minutes
+  for the full run.
+</figcaption>
+</figure>
+
+<h2 id="results"><span class="num">09</span>Results</h2>
+
+<figure>
+  <img src="assets/training_history.png" alt="Accuracy and loss curves over 20 epochs for both training and validation sets">
+  <figcaption>The complete 20-epoch history, recovered from the original run.</figcaption>
+</figure>
+
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Metric</th><th class="num">Epoch 1</th><th class="num">Best</th><th class="num">Epoch 20</th></tr></thead>
+  <tbody>
+    <tr><td>Training accuracy</td><td class="num">0.6638</td><td class="num">0.9830</td><td class="num">0.9830</td></tr>
+    <tr><td><strong>Validation accuracy</strong></td><td class="num">0.7727</td><td class="num hi">0.8287 <span style="color:var(--muted)">ep 5</span></td><td class="num">0.8043</td></tr>
+    <tr><td>Training loss</td><td class="num">0.7353</td><td class="num">0.0483</td><td class="num">0.0483</td></tr>
+    <tr><td><strong>Validation loss</strong></td><td class="num">0.5010</td><td class="num hi">0.4159 <span style="color:var(--muted)">ep 4</span></td><td class="num">0.8080</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="cards">
+  <div class="card"><span class="k">82.9%</span><span class="v">Best held-out accuracy</span></div>
+  <div class="card blue"><span class="k">~50%</span><span class="v">What guessing would score</span></div>
+  <div class="card"><span class="k">1,267</span><span class="v">Articles it was scored on</span></div>
+  <div class="card amber"><span class="k">2,200</span><span class="v">Parameters per training example</span></div>
+</div>
+
+<h3>Reading the curves</h3>
+
+<p>
+  <strong>The model works.</strong> 82.9% accuracy on articles it never trained
+  on, against a roughly balanced two-class problem where guessing scores about
+  50%. It learned something real about the language of the two classes.
+</p>
+
+<p>
+  <strong>Most of the learning happens early.</strong> Validation accuracy is
+  already 0.7727 after a single epoch and peaks by epoch 5. The remaining fifteen
+  epochs move it very little.
+</p>
+
+<p>
+  <strong>Training and validation diverge.</strong> Training accuracy climbs to
+  0.9830 while validation settles near 0.80. The model fits the training articles
+  more closely than it generalises — expected behaviour when 11.2 million
+  parameters learn from 5,068 examples.
+</p>
+
+<h2 id="running"><span class="num">10</span>Running it</h2>
+
+<pre><code>cd 01-fake-news-classifier
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+pytest                           # 31 tests
+python scripts/make_figures.py   # regenerate every figure on this page</code></pre>
+
+<p>Try the cleaning steps directly:</p>
+
+<pre><code>from src.preprocessing import legacy_char_clean, clean_text
+
+legacy_char_clean("You Can Smell Hillary s Fear")
+# 'yu cn sell hllr  fer'
+
+clean_text("You Can Smell Hillary's Fear")
+# 'you can smell hillary s fear'</code></pre>
+
+<h2 id="scope"><span class="num">11</span>Scope</h2>
+
+<div class="note amber">
+  <span class="label">This is text classification, not fact-checking</span>
+  <p>
+    The model predicts a dataset's <code>label</code> column, and that label is
+    whatever the dataset's author recorded. A classifier can score well by
+    learning publisher style, topic, or date range — patterns that are
+    statistically real and say nothing about whether a claim is true.
+  </p>
+  <p>
+    Nothing here should be used to judge the truth of an article, the credibility
+    of a source, or the honesty of a person.
+  </p>
+</div>
+
+<p>
+  The reported numbers come from a single 2022 run on a split made without a
+  fixed random seed. They describe what happened that day; they are not a
+  benchmark and cannot be reproduced exactly.
+</p>
+
+<footer>
+  <p>
+    Project 01 of a machine-learning portfolio spanning December 2022 to
+    January 2026. Source and full write-up:
+    <a href="https://github.com/CHAITANYA-2002/machine-learning-projects">github.com/CHAITANYA-2002/machine-learning-projects</a>
+  </p>
+  <p>
+    Previous: <a href="../../00-foundations/">00 — Foundations</a> ·
+    Next: <a href="../../02-gender-image-classifier/">02 — Gender Image Classifier</a>
+  </p>
+</footer>
+
+</div>
+</body>
+</html>

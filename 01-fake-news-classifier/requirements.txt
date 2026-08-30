@@ -1,0 +1,21 @@
+# Baseline pipeline, tests, and figure generation.
+#   python -m venv .venv && source .venv/bin/activate   (Windows: .venv\Scripts\activate)
+#   pip install -r requirements.txt
+
+numpy>=1.25,<2.0
+pandas>=2.0,<3.0
+scikit-learn>=1.3,<2.0
+matplotlib>=3.7,<4.0
+
+# Tests
+pytest>=8.0
+
+# Optional: only needed to cross-check the single-character stopword list
+# against NLTK itself. src/preprocessing.py falls back to a hardcoded set,
+# so the tests pass without downloading any corpus.
+# nltk>=3.8
+
+# NOT required. The original notebook used TensorFlow/Keras, but nothing in
+# src/ or tests/ imports it, and the notebook is preserved as a record rather
+# than re-run. Install it only to execute the notebook yourself:
+# tensorflow>=2.13

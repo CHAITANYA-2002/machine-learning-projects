@@ -1,0 +1,8 @@
+# The source corpus is not redistributed here. See data/README.md.
+data/*
+!data/README.md
+!data/training_log_2022.csv
+
+__pycache__/
+.ipynb_checkpoints/
+.pytest_cache/
