@@ -8,7 +8,7 @@ FLOW:
 3. Ask for store preference
 4. Add items to cart
 5. Ask about delivery options on screen
-6. Complete payment with voice-provided details
+6. Stop at a visible cart for the user to complete checkout manually
 
 Author: Voice Shopping System
 Version: 1.0 Final
@@ -30,6 +30,7 @@ from selenium.webdriver.chrome.service import Service
 from pathlib import Path
 from datetime import datetime
 from src.order_validation import validate_order_item
+from src.checkout_safety import require_manual_checkout
 # Load .env values into the environment if present
 from dotenv import load_dotenv
 load_dotenv()
@@ -735,7 +736,11 @@ class SupermarketAutomation:
             return ["Credit/Debit Card", "PayPal"]
     
     def complete_payment(self, voice: VoiceInterface):
-        """Complete payment with voice input"""
+        """Preserved historical checkout code; automated payment is disabled."""
+        return require_manual_checkout(voice)
+
+        # Historical prototype kept below for provenance. It is unreachable so
+        # the assistant cannot collect card/OTP data or submit an order.
         try:
             # Navigate to checkout
             self.voice.speak("Proceeding to checkout")

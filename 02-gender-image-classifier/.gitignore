@@ -1,9 +1,13 @@
-# Potentially sensitive and/or licensed image data must remain local.
-data/
+# Image data is not redistributed here. See data/README.md.
+data/*
+!data/README.md
+!data/training_log_2022.csv
 
-# Generated model artifacts and notebook checkpoints.
+# Model artifacts
 *.h5
 *.keras
 *.pkl
-.ipynb_checkpoints/
+
 __pycache__/
+.ipynb_checkpoints/
+.pytest_cache/

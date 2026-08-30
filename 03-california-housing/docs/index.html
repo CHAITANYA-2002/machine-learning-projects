@@ -2,382 +2,254 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>California House Price Predictor — Technical Walkthrough</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Evidence-led technical walkthrough for a California Housing random-forest regression baseline."
+    />
+    <title>California Housing Regression — Master Walkthrough</title>
     <style>
       :root {
-        --ink: #142033;
-        --muted: #556478;
-        --brand: #37258a;
-        --soft: #f5f3ff;
-        --line: #dce2eb;
+        --ink: #17233a;
+        --muted: #5e6c82;
+        --paper: #ffffff;
+        --ground: #f5f7fb;
+        --line: #dce3ef;
+        --purple: #5b3fd6;
+        --purple-soft: #f0edff;
+        --teal: #138a72;
+        --teal-soft: #e8f5f1;
+        --orange: #c87521;
+        --orange-soft: #fff3e2;
+        --red: #b13e54;
+        --red-soft: #fcecf0;
+        --shadow: 0 20px 60px rgba(27, 42, 68, 0.09);
       }
-      * {
-        box-sizing: border-box;
-      }
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
       body {
         margin: 0;
-        background: #f6f8fb;
         color: var(--ink);
-        font:
-          16px/1.65 Inter,
-          system-ui,
-          sans-serif;
+        background: var(--ground);
+        font: 16px/1.7 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
-      header {
-        background: linear-gradient(125deg, #20124d, #563bc7);
+      a { color: var(--purple); }
+      .hero {
+        padding: 76px 24px 64px;
         color: white;
-        padding: 76px 24px;
+        background:
+          radial-gradient(circle at 88% 10%, rgba(120, 234, 208, 0.26), transparent 27rem),
+          radial-gradient(circle at 0 80%, rgba(161, 124, 255, 0.3), transparent 32rem),
+          linear-gradient(130deg, #1d1654 0%, #4e35bb 58%, #283f88 100%);
       }
-      header div,
-      main {
-        max-width: 1020px;
-        margin: auto;
+      .wrap { width: min(1120px, calc(100% - 40px)); margin: 0 auto; }
+      .eyebrow {
+        margin: 0 0 14px;
+        color: #d8d0ff;
+        font-weight: 800;
+        font-size: .78rem;
+        letter-spacing: .12em;
+        text-transform: uppercase;
       }
       h1 {
-        font-size: clamp(2.5rem, 6vw, 4.6rem);
-        line-height: 1.05;
-        margin: 0 0 16px;
+        max-width: 950px;
+        margin: 0;
+        font-size: clamp(2.7rem, 7vw, 5.8rem);
+        line-height: .98;
+        letter-spacing: -.06em;
       }
-      header p {
-        max-width: 760px;
-        font-size: 1.18rem;
-        color: #e9e5ff;
+      .hero .lead { max-width: 760px; margin: 25px 0 0; color: #efedff; font-size: clamp(1.08rem, 2vw, 1.28rem); }
+      .pills { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 30px; }
+      .pill { padding: 7px 12px; border: 1px solid rgba(255,255,255,.35); border-radius: 99px; background: rgba(255,255,255,.08); font-size: .9rem; }
+      .toc {
+        position: sticky; top: 0; z-index: 5;
+        border-bottom: 1px solid var(--line); background: rgba(255,255,255,.94); backdrop-filter: blur(12px);
       }
-      .stats {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 9px;
-        margin-top: 28px;
-      }
-      .stats span {
-        border: 1px solid #ffffff50;
-        border-radius: 99px;
-        padding: 6px 11px;
-      }
-      main {
-        background: white;
-        padding: 46px clamp(22px, 5vw, 68px);
-        box-shadow: 0 12px 50px #15233a10;
-      }
-      h2 {
-        font-size: 2rem;
-        line-height: 1.2;
-        border-top: 1px solid var(--line);
-        padding-top: 34px;
-        margin-top: 54px;
-      }
-      h3 {
-        margin-top: 32px;
-      }
-      p.lead {
-        font-size: 1.15rem;
-        color: var(--muted);
-      }
-      table {
-        border-collapse: collapse;
-        width: 100%;
-        margin: 22px 0;
-      }
-      th,
-      td {
-        border: 1px solid var(--line);
-        padding: 11px;
-        text-align: left;
-        vertical-align: top;
-      }
-      th {
-        background: var(--soft);
-      }
-      code {
-        background: #eef1f6;
-        padding: 2px 5px;
-        border-radius: 4px;
-      }
-      pre,
-      .diagram {
-        background: #171d2b;
-        color: #edf2f8;
-        padding: 20px;
-        border-radius: 12px;
-        overflow: auto;
-      }
-      .diagram {
-        background: linear-gradient(130deg, #f4f1ff, #edf5ff);
-        color: var(--brand);
-        font-weight: 700;
-        text-align: center;
-      }
-      .notice {
-        background: #fff5d8;
-        border-left: 5px solid #cf9200;
-        padding: 17px 20px;
-        border-radius: 8px;
-      }
-      .good {
-        background: #e9f8f0;
-        border-left: 5px solid #158653;
-        padding: 15px;
-      }
-      .bad {
-        background: #fff0f0;
-        border-left: 5px solid #c64444;
-        padding: 15px;
-      }
-      footer {
-        max-width: 1020px;
-        margin: auto;
-        padding: 25px;
-        color: var(--muted);
-        text-align: center;
+      .toc .wrap { display: flex; gap: 20px; overflow-x: auto; padding: 12px 0; }
+      .toc a { color: var(--muted); font-size: .88rem; text-decoration: none; white-space: nowrap; }
+      .toc a:hover { color: var(--purple); }
+      main { width: min(1120px, calc(100% - 40px)); margin: 0 auto 65px; padding: 48px clamp(20px, 5vw, 72px); background: var(--paper); box-shadow: var(--shadow); }
+      section { scroll-margin-top: 60px; }
+      section + section { margin-top: 76px; padding-top: 68px; border-top: 1px solid var(--line); }
+      h2 { margin: 0 0 16px; font-size: clamp(1.85rem, 4vw, 3rem); letter-spacing: -.04em; line-height: 1.08; }
+      h3 { margin: 32px 0 10px; font-size: 1.24rem; }
+      p { max-width: 850px; }
+      .lede { color: var(--muted); font-size: 1.12rem; }
+      .callout { margin: 25px 0; padding: 18px 20px; border-left: 5px solid var(--purple); border-radius: 8px; background: var(--purple-soft); }
+      .callout.warning { border-color: var(--orange); background: var(--orange-soft); }
+      .callout.danger { border-color: var(--red); background: var(--red-soft); }
+      .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 26px 0; }
+      .card { padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+      .card .label { color: var(--muted); font-size: .82rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+      .card .value { margin-top: 5px; color: var(--purple); font-size: 2rem; font-weight: 850; letter-spacing: -.05em; }
+      .card p { margin: 4px 0 0; color: var(--muted); font-size: .9rem; }
+      table { width: 100%; margin: 25px 0; border-collapse: collapse; font-size: .94rem; }
+      th, td { padding: 12px 13px; border: 1px solid var(--line); vertical-align: top; text-align: left; }
+      th { background: #f7f8fc; font-size: .81rem; letter-spacing: .04em; text-transform: uppercase; }
+      code { padding: 2px 5px; border-radius: 4px; background: #edf0f6; font: .9em ui-monospace, SFMono-Regular, Consolas, monospace; }
+      pre { margin: 20px 0; padding: 19px; overflow: auto; border-radius: 10px; color: #e8edfa; background: #172038; font-size: .88rem; }
+      .figure { margin: 30px 0; padding: 13px; border: 1px solid var(--line); border-radius: 13px; background: #fff; }
+      .figure img { display: block; width: 100%; border-radius: 7px; }
+      .caption { margin: 9px 4px 0; color: var(--muted); font-size: .87rem; }
+      .flow { display: grid; grid-template-columns: repeat(5, 1fr); align-items: center; gap: 8px; margin: 30px 0; }
+      .flow > div { padding: 16px 11px; border: 1px solid var(--line); border-radius: 10px; text-align: center; font-weight: 750; background: #fafbfe; }
+      .flow > div:nth-child(3) { border-color: #a998ff; background: var(--purple-soft); }
+      .flow small { display: block; margin-top: 5px; color: var(--muted); font-weight: 500; }
+      .split { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+      .good, .bad { padding: 21px; border-radius: 12px; }
+      .good { background: var(--teal-soft); border: 1px solid #a6dbce; }
+      .bad { background: var(--red-soft); border: 1px solid #f1b9c5; }
+      .good h3 { color: var(--teal); } .bad h3 { color: var(--red); }
+      ul { padding-left: 22px; } li + li { margin-top: 7px; }
+      footer { width: min(1120px, calc(100% - 40px)); margin: 0 auto; padding: 0 0 34px; color: var(--muted); font-size: .9rem; }
+      @media (max-width: 760px) {
+        .hero { padding-top: 55px; }
+        main { width: 100%; padding: 38px 24px; }
+        .grid, .split { grid-template-columns: 1fr; }
+        .flow { grid-template-columns: 1fr; }
+        .flow > div:not(:last-child)::after { content: "↓"; display: block; margin-top: 7px; color: var(--muted); }
+        table { display: block; overflow-x: auto; }
       }
       @media print {
-        body {
-          background: white;
-        }
-        main {
-          box-shadow: none;
-        }
+        body { background: white; } .toc { display: none; } main { width: 100%; box-shadow: none; } .hero { padding: 36px; }
       }
     </style>
   </head>
   <body>
-    <header>
-      <div>
-        <h1>California House Price Predictor</h1>
-        <p>
-          Technical walkthrough for a reproducible baseline that estimates
-          historical California district median house values—not current
-          property valuations.
-        </p>
-        <div class="stats">
-          <span>20,640 districts</span><span>8 features</span
-          ><span>16,512 train / 4,128 test</span><span>3 tests</span
-          ><span>R² 0.806</span>
+    <header class="hero">
+      <div class="wrap">
+        <p class="eyebrow">Technical master document · Project 03</p>
+        <h1>California Housing Regression</h1>
+        <p class="lead">An evidence-led walkthrough of a leakage-safe random-forest baseline for historical census-district values. It documents what was measured, how it was measured, and exactly what readers must not infer from the result.</p>
+        <div class="pills">
+          <span class="pill">20,640 districts</span><span class="pill">8 features</span><span class="pill">1990 census target</span><span class="pill">4 verified tests</span><span class="pill">R² 0.806</span>
         </div>
       </div>
     </header>
+    <nav class="toc"><div class="wrap">
+      <a href="#verdict">Verdict</a><a href="#evidence">Evidence</a><a href="#data">Data</a><a href="#boundary">Holdout</a><a href="#model">Model</a><a href="#results">Results</a><a href="#interpretation">Interpretation</a><a href="#reproduce">Reproduce</a>
+    </div></nav>
     <main>
-      <h2>1 · The problem is not a valuation</h2>
-      <p class="lead">
-        The target is a 1990 census district median house value in units of
-        $100,000. It is capped at $500,001, so this is a historical data
-        exercise with a censored target—not an appraisal or a current-market
-        forecast.
-      </p>
-      <div class="notice">
-        <strong>Interpretation boundary.</strong> A score on this target cannot
-        estimate the price of a specific property, explain causality, or
-        establish performance in a current market.
-      </div>
-      <table>
-        <tr>
-          <th>Fact</th>
-          <th>Measured value</th>
-        </tr>
-        <tr>
-          <td>Source rows</td>
-          <td>20,640</td>
-        </tr>
-        <tr>
-          <td>Missing feature values</td>
-          <td>0</td>
-        </tr>
-        <tr>
-          <td>Target median</td>
-          <td>1.797 ($179,700)</td>
-        </tr>
-        <tr>
-          <td>Target maximum</td>
-          <td>5.00001 ($500,001 cap)</td>
-        </tr>
-      </table>
-      <h2>2 · System at a glance</h2>
-      <div class="diagram">
-        California Housing → fixed 80/20 split → training-only imputer/scaler →
-        300-tree random forest → untouched test predictions → MAE / RMSE / R²
-      </div>
-      <p>
-        The sequence is a causal boundary, not a cosmetic pipeline. The split
-        happens before preprocessing; otherwise the test districts could
-        influence training statistics.
-      </p>
-      <table>
-        <tr>
-          <th>Artefact</th>
-          <th>Role</th>
-          <th>Evidence</th>
-        </tr>
-        <tr>
-          <td><code>main.py</code></td>
-          <td>End-to-end command</td>
-          <td>Executed against source data</td>
-        </tr>
-        <tr>
-          <td><code>housing_model.py</code></td>
-          <td>Split, model, metric helpers</td>
-          <td>Unit tested</td>
-        </tr>
-        <tr>
-          <td>Final notebook</td>
-          <td>EDA, residuals, importance</td>
-          <td>Executed; zero saved errors</td>
-        </tr>
-        <tr>
-          <td>Tests</td>
-          <td>Regression guards</td>
-          <td>3 passing</td>
-        </tr>
-      </table>
-      <h2>3 · Data contract</h2>
-      <p>
-        The project fetches the maintained scikit-learn dataset at runtime
-        rather than committing a copied extract. Inputs are census-derived
-        district means: income, house age, rooms, bedrooms, population,
-        occupancy, latitude, and longitude. The data has no missing values in
-        this execution; median imputation remains as a training-only guard if
-        the input contract changes.
-      </p>
-      <p>
-        <strong>Important shape of the data:</strong> population ranges from 3
-        to 35,682 and average occupancy reaches 1,243.33, so extremes exist.
-        Coordinates identify districts, not individual properties.
-      </p>
-      <h2>4 · Leakage boundary</h2>
-      <div class="diagram">
-        20,640 rows → 16,512 training rows [fit] + 4,128 test rows [never fit] →
-        predict once → report
-      </div>
-      <p>
-        The fixed random split is appropriate for a first tabular baseline, but
-        it does not prove spatial transfer. Neighbouring districts can sit in
-        different partitions. Spatially blocked validation is the stated next
-        test before making a geographic-generalisation claim.
-      </p>
-      <h2>5 · Model and decisions</h2>
-      <table>
-        <tr>
-          <th>Decision</th>
-          <th>Choice</th>
-          <th>Reason</th>
-        </tr>
-        <tr>
-          <td>Estimator</td>
-          <td>Random forest</td>
-          <td>Captures nonlinear interactions without a deep-learning stack</td>
-        </tr>
-        <tr>
-          <td>Trees</td>
-          <td>300</td>
-          <td>Stable baseline without an impractical run time</td>
-        </tr>
-        <tr>
-          <td>Minimum leaf</td>
-          <td>2</td>
-          <td>Discourages one-row leaves</td>
-        </tr>
-        <tr>
-          <td>Imputation</td>
-          <td>Median</td>
-          <td>Robust future-input fallback</td>
-        </tr>
-        <tr>
-          <td>Seed</td>
-          <td>42</td>
-          <td>Repeatable split and model</td>
-        </tr>
-      </table>
-      <p>
-        Scaling is retained inside the pipeline to keep a reusable preprocessing
-        interface, even though tree splits themselves are insensitive to scale.
-      </p>
-      <h2>6 · Measured result</h2>
-      <table>
-        <tr>
-          <th>Metric</th>
-          <th>Value</th>
-          <th>Meaning</th>
-        </tr>
-        <tr>
-          <td>MAE</td>
-          <td><strong>0.326</strong></td>
-          <td>About $32,600 typical absolute error</td>
-        </tr>
-        <tr>
-          <td>RMSE</td>
-          <td><strong>0.504</strong></td>
-          <td>About $50,400 when larger misses receive more weight</td>
-        </tr>
-        <tr>
-          <td>R²</td>
-          <td><strong>0.806</strong></td>
-          <td>80.6% of holdout variation captured</td>
-        </tr>
-      </table>
-      <div class="bad">
-        <strong>Do not convert R² into a valuation claim.</strong> It does not
-        mean 80.6% of an individual home’s price is known, and it says nothing
-        about error by geography or price band.
-      </div>
-      <h2>7 · Model reliance</h2>
-      <p>
-        Impurity-based forest importance ranks <code>MedInc</code> (0.535),
-        <code>AveOccup</code> (0.138), latitude (0.088), longitude (0.088), and
-        house age (0.053) first. This describes the fitted model’s splits, not
-        causes. Income and location carry unobserved variables; permutation
-        importance and geographic error slices remain open.
-      </p>
-      <h2>8 · The original failure</h2>
-      <p>
-        The first script did not run: it passed the dataset object as a
-        train/test target, contained malformed Keras layers, misspelled metrics,
-        and tried to predict from the training history. The rebuild uses small
-        functions and three regression tests instead of hiding the failure
-        behind a rewritten README.
-      </p>
-      <div class="good">
-        <strong>Regression guards:</strong> repeatable split; one finite
-        prediction per test row; known MAE/RMSE/R² arithmetic.
-      </div>
-      <h2>9 · Verification</h2>
-      <pre>
-python main.py
-Training rows: 16,512 | Test rows: 4,128
-MAE: 0.326 | RMSE: 0.504 | R2: 0.806
-
-python -m pytest tests -q
-3 passed</pre
-      >
-      <h2>10 · Limitations and open item</h2>
-      <ul>
-        <li>1990 data is not a live market.</li>
-        <li>The target is capped at $500,001.</li>
-        <li>Random holdout can leak spatial proximity.</li>
-        <li>District means cannot value individual homes.</li>
-        <li>
-          Condition, schools, finance, zoning, and transaction timing are
-          absent.
-        </li>
-        <li>No fairness or geographic error-slice audit has been run.</li>
-      </ul>
-      <p>
-        <strong>Current state:</strong> verified local baseline.
-        <strong>Open next step:</strong> spatially blocked validation and error
-        analysis before any claim of regional transfer.
-      </p>
-      <h2>A · Run and inspect</h2>
-      <pre>
-python -m venv .venv
+      <section id="verdict">
+        <p class="eyebrow" style="color:var(--purple)">01 · The conclusion first</p>
+        <h2>A solid historical baseline—not a valuation product.</h2>
+        <p class="lede">The project has a valid small-scope claim: with a fixed random split of the California Housing dataset, a 300-tree random forest produced a saved holdout R² of 0.806. The target is a capped, 1990, district-level median. That evidence is useful for a reproducible machine-learning demonstration and insufficient for appraising homes or forecasting a live market.</p>
+        <div class="grid">
+          <div class="card"><div class="label">Typical miss</div><div class="value">0.326</div><p>MAE in $100,000s; about $32,600.</p></div>
+          <div class="card"><div class="label">Large-error-sensitive</div><div class="value">0.504</div><p>RMSE; about $50,400.</p></div>
+          <div class="card"><div class="label">Holdout fit</div><div class="value">0.806</div><p>R² on 4,128 random holdout rows.</p></div>
+        </div>
+        <div class="callout warning"><strong>Read the unit carefully.</strong> Target and errors are reported in units of $100,000. The dollar translations are simply the metric multiplied by 100,000; they do not turn an area-level historical result into a property-level estimate.</div>
+      </section>
+      <section id="evidence">
+        <p class="eyebrow" style="color:var(--purple)">02 · Evidence ledger</p>
+        <h2>Every claim has a visible source.</h2>
+        <table>
+          <thead><tr><th>Claim</th><th>Evidence location</th><th>Scope</th></tr></thead>
+          <tbody>
+            <tr><td>20,640 rows, 8 features, target unit</td><td>Saved output in the preserved combined notebook</td><td>Fetched scikit-learn dataset</td></tr>
+            <tr><td>MAE 0.326 / RMSE 0.504 / R² 0.806</td><td>Saved metrics table in the preserved combined notebook</td><td>One fixed 80/20 random split</td></tr>
+            <tr><td>Pipeline order and hyperparameters</td><td><code>src/housing_model.py</code></td><td>Current runnable implementation</td></tr>
+            <tr><td>Direct command can resolve project imports</td><td><code>tests/test_housing_model.py</code></td><td>Regression test, not a performance test</td></tr>
+            <tr><td>Data provenance and no-raw-data rule</td><td><code>data/README.md</code></td><td>Repository operating boundary</td></tr>
+          </tbody>
+        </table>
+        <div class="figure"><img src="assets/pipeline_overview.png" alt="Five-stage evaluation pipeline from public data to measured holdout metrics." /><p class="caption">The pipeline is ordered to protect the holdout. The test partition does not contribute preprocessing statistics or tree splits.</p></div>
+      </section>
+      <section id="data">
+        <p class="eyebrow" style="color:var(--purple)">03 · Data contract</p>
+        <h2>The target is historical, capped, and district-level.</h2>
+        <p>The project calls <code>fetch_california_housing(as_frame=True)</code>. The source is downloaded and cached by scikit-learn rather than copied into this repository. Each row describes a California census district; it does not describe a particular address or transaction.</p>
+        <table>
+          <thead><tr><th>Feature group</th><th>Meaning</th><th>Interpretation caveat</th></tr></thead>
+          <tbody>
+            <tr><td><code>MedInc</code></td><td>Median income in tens of thousands of dollars</td><td>Historical area-level proxy; correlation is not causation.</td></tr>
+            <tr><td><code>HouseAge</code></td><td>Median housing age</td><td>Top-coded at 52 years.</td></tr>
+            <tr><td><code>AveRooms</code>, <code>AveBedrms</code></td><td>Mean rooms/bedrooms per household</td><td>Ratios include extreme districts.</td></tr>
+            <tr><td><code>Population</code>, <code>AveOccup</code></td><td>Population and mean occupancy</td><td>Skew and outliers need diagnostic attention.</td></tr>
+            <tr><td><code>Latitude</code>, <code>Longitude</code></td><td>District location</td><td>Spatial structure can cross a random split.</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><strong>Target cap:</strong> <code>MedHouseVal</code> reaches 5.00001 ($500,001). Values at that boundary are censored. The model can learn the label it is given, but cannot distinguish the full variation above the cap.</div>
+      </section>
+      <section id="boundary">
+        <p class="eyebrow" style="color:var(--purple)">04 · Evaluation boundary</p>
+        <h2>Split before learning any data-dependent state.</h2>
+        <div class="flow">
+          <div>Fetch<small>20,640 rows</small></div><div>Split<small>80/20, seed 42</small></div><div>Fit train only<small>imputer, scaler, forest</small></div><div>Predict test<small>4,128 unseen rows</small></div><div>Measure<small>MAE · RMSE · R²</small></div>
+        </div>
+        <p>Fitting a scaler or imputer on all rows before splitting would let the holdout influence training. A scikit-learn <code>Pipeline</code> makes the intended sequence executable: it fits transformations only when <code>pipeline.fit(X_train, y_train)</code> is called, then reuses that learned state during <code>pipeline.predict(X_test)</code>.</p>
+        <div class="figure"><img src="assets/holdout_boundary.png" alt="A bar showing 16,512 training rows and 4,128 held-out test rows." /><p class="caption">The holdout is an evaluation boundary. It is not used to fit preprocessing or the model.</p></div>
+        <div class="callout danger"><strong>What remains unresolved:</strong> a random holdout does not demonstrate geographic transfer. Neighbouring districts can appear on both sides of the split. Spatially blocked validation is the required next check for a geographic generalisation claim.</div>
+      </section>
+      <section id="model">
+        <p class="eyebrow" style="color:var(--purple)">05 · Baseline model</p>
+        <h2>One inspectable pipeline, chosen for a credible first comparison.</h2>
+        <div class="figure"><img src="assets/model_structure.png" alt="Pipeline of census features, median imputer, scaler, random forest and predicted target." /><p class="caption">The scaler is retained for a reusable preprocessing contract, even though tree splits themselves do not require scaled inputs.</p></div>
+        <table>
+          <thead><tr><th>Choice</th><th>Configuration</th><th>Why it exists</th></tr></thead>
+          <tbody>
+            <tr><td>Estimator</td><td><code>RandomForestRegressor</code></td><td>Captures nonlinear tabular relationships without a deep-learning stack.</td></tr>
+            <tr><td>Forest size</td><td>300 trees</td><td>Reduces individual-tree variance for a stable baseline.</td></tr>
+            <tr><td>Leaf constraint</td><td><code>min_samples_leaf=2</code></td><td>Discourages terminal leaves containing a single training district.</td></tr>
+            <tr><td>Imputation</td><td>Median</td><td>Training-only robustness if future inputs contain missing values.</td></tr>
+            <tr><td>Seed</td><td><code>random_state=42</code></td><td>Reproducible split and forest configuration.</td></tr>
+          </tbody>
+        </table>
+        <pre>pipeline = build_pipeline(random_state=42)
+pipeline.fit(X_train, y_train)    # Learns only from training rows
+predictions = pipeline.predict(X_test)
+metrics = evaluate_predictions(y_test, predictions)</pre>
+      </section>
+      <section id="results">
+        <p class="eyebrow" style="color:var(--purple)">06 · Results and diagnostics</p>
+        <h2>Three metrics, each answering a different question.</h2>
+        <div class="figure"><img src="assets/holdout_metrics.png" alt="Metric cards showing MAE 0.326, RMSE 0.504 and R-squared 0.806." /><p class="caption">Reported values are taken from the preserved executed baseline notebook.</p></div>
+        <table>
+          <thead><tr><th>Metric</th><th>What it measures</th><th>What it cannot answer</th></tr></thead>
+          <tbody>
+            <tr><td>MAE</td><td>Average magnitude of prediction error.</td><td>Whether a few large misses exist or where errors concentrate.</td></tr>
+            <tr><td>RMSE</td><td>Error with greater emphasis on large misses.</td><td>Whether errors are unbiased or equitable.</td></tr>
+            <tr><td>R²</td><td>Variance captured versus a constant predictor on this holdout.</td><td>Whether a property’s price is 80.6% “known”.</td></tr>
+          </tbody>
+        </table>
+        <h3>Feature reliance is not causality</h3>
+        <div class="figure"><img src="assets/feature_importance.png" alt="Bar chart of random forest impurity-based feature importance." /><p class="caption">Income, occupancy and location are prominent in the fitted forest. Correlation, split opportunities, and proxies affect this ranking.</p></div>
+        <p>The importance chart describes the fitted forest’s split reliance. It does not show interventions, causes, or fairness. A stronger follow-up uses permutation importance and examines residuals by geography and target range.</p>
+      </section>
+      <section id="interpretation">
+        <p class="eyebrow" style="color:var(--purple)">07 · Correct interpretation</p>
+        <h2>Keep the claim matched to the evidence.</h2>
+        <div class="figure"><img src="assets/interpretation_boundary.png" alt="Two panels distinguishing claims supported by the project from claims it does not support." /></div>
+        <div class="split">
+          <div class="good"><h3>Supported</h3><ul><li>Reproducing a transparent 1990 district-level regression baseline.</li><li>Demonstrating a leakage-safe scikit-learn workflow.</li><li>Inspecting holdout error and fitted-model reliance.</li></ul></div>
+          <div class="bad"><h3>Not supported</h3><ul><li>Appraising a house or listing price today.</li><li>Claiming income or coordinates cause prices.</li><li>Claiming accuracy in an unseen geographic market.</li></ul></div>
+        </div>
+      </section>
+      <section id="reproduce">
+        <p class="eyebrow" style="color:var(--purple)">08 · Reproduce and verify</p>
+        <h2>Run the project, then read the notebooks.</h2>
+        <pre>python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-python main.py
-python -m pytest tests -q
-python -m jupyter nbconvert --to notebook --execute final_california_house_price_modeling.ipynb --output final_california_house_price_modeling.ipynb</pre
-      >
+python src/train.py
+python -m pytest
+
+# Rebuild explanatory assets
+python scripts/make_figures.py
+python scripts/build_notebooks.py</pre>
+        <table>
+          <thead><tr><th>Artefact</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>notebooks/01_house_price_modeling.ipynb</code></td><td>Preserved combined notebook and saved baseline evidence.</td></tr>
+            <tr><td><code>notebooks/01_exploratory_data_analysis.ipynb</code></td><td>Detailed descriptive analysis with comments explaining why every stage is included.</td></tr>
+            <tr><td><code>notebooks/02_model_development.ipynb</code></td><td>Detailed split, training, evaluation and interpretation walkthrough.</td></tr>
+            <tr><td><code>tests/test_housing_model.py</code></td><td>Four focused tests for reproducibility, prediction shape, metric arithmetic and direct-script imports.</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><strong>Recommended next experiment:</strong> replace the random holdout with spatially blocked cross-validation. Compare the resulting metrics and residual patterns before claiming the model transfers to new regions.</div>
+      </section>
     </main>
-    <footer>
-      Every stated metric above comes from the verified local command run.
-      Educational use only.
-    </footer>
+    <footer>California Housing Regression · master walkthrough · scope is intentionally limited to a historical, educational baseline.</footer>
   </body>
 </html>

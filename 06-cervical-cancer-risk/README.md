@@ -62,10 +62,10 @@ Final notebook: retained EDA → declared leakage contract → one split
 ## Project map
 
 ```text
-001_Cervical_Cancer_Predection_with_ML/
-├── 01_exploratory_data_analysis.ipynb  # quality, distributions, missingness
-├── 02_model_development.ipynb          # preprocessing, CV, evaluation
-├── final_cervical_cancer_risk_modeling.ipynb # preserved + consolidated final notebook
+06-cervical-cancer-risk/
+├── notebooks/01_exploratory_data_analysis.ipynb  # quality, distributions, missingness
+├── notebooks/02_model_development.ipynb          # preprocessing, CV, evaluation
+├── notebooks/03_final_modeling.ipynb             # preserved + consolidated final notebook
 ├── data/cervical_cancer.csv            # source dataset
 ├── docs/
 │   ├── index.html                      # standalone master document
@@ -325,7 +325,7 @@ Run in order:
 
 For a single complete walkthrough—including the original project's retained EDA
 views and its rebuilt XGBoost comparison—open
-`final_cervical_cancer_risk_modeling.ipynb` instead.
+`notebooks/03_final_modeling.ipynb` instead.
 
 Or execute non-interactively:
 

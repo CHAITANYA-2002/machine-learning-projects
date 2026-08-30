@@ -1,191 +1,156 @@
 # NIFTY Closing-Price Analysis
 
-**A chronological, leakage-aware baseline for predicting the next recorded NIFTY closing price from prior closing-price history.**
+This project builds an honest baseline for a narrow forecasting question:
 
-`3,872 rows · 2008-01-01 to 2023-09-04 · 3 lagged features · 3 tests · no trading claim`
+> Given only closing-price information available before a trading day, how closely can a simple model estimate that day’s recorded NIFTY close?
 
-> The original notebook is preserved. This README documents the corrected workflow and the analytical boundary that makes its score meaningful: **a model must never train on dates after the date it is asked to predict.**
+It uses **3,872** daily observations from **2008-01-01 to 2023-09-04** and evaluates the final chronological 20% of the series. It is educational historical analysis—not investment advice, a trading system, or a claim of future performance.
 
----
+![NIFTY closing-price history and chronological train-test boundary](docs/assets/price_history_split.png)
 
-## Contents
+## Why time order is the whole project
 
-| | | |
-|---|---|---|
-| [1 · The future-leakage problem](#1--the-future-leakage-problem) | [5 · The baseline](#5--the-baseline) | [9 · Verification](#9--verification) |
-| [2 · System at a glance](#2--system-at-a-glance) | [6 · Results](#6--results) | [10 · Limitations](#10--limitations) |
-| [3 · Data contract](#3--data-contract) | [7 · Why the score is not a strategy](#7--why-the-score-is-not-a-strategy) | [A · Commands and layout](#a--commands-and-layout) |
-| [4 · Feature timing](#4--feature-timing) | [8 · The original failure](#8--the-original-failure) | |
-
-## 1 · The future-leakage problem
-
-The original notebook created lag features and then used a random `train_test_split`. That allows a row from 2023 to train a model that is evaluated on a row from 2010. It is not a minor statistical preference: markets are ordered in time, prices are autocorrelated, and a random split makes a next-period claim look far stronger than it is.
-
-The corrected workflow makes one narrower claim: after training on the earliest 80% of the available feature rows, how closely can a linear baseline reproduce closing prices in the remaining, later 20%?
+Time-series data has a rule that ordinary tabular data does not: the future must remain unavailable during training. A random split can let a later market date influence a model evaluated on an earlier date, producing an attractive but invalid score. This workflow uses the earliest 80% of engineered rows for training and reserves the latest 20% as the holdout.
 
 ```mermaid
 flowchart LR
-    A[Historical NIFTY closes] --> B[Sort by Date]
-    B --> C[Shift all features one trading day]
+    A[Historical NIFTY closes] --> B[Parse and sort by Date]
+    B --> C[Create features from earlier closes only]
     C --> D[Train: earliest 80%]
-    D --> E[Test: latest 20% only]
-    E --> F[MAE · RMSE · MAPE]
+    D --> E[Test: latest 20%]
+    E --> F[Measure MAE, RMSE and MAPE]
 ```
 
-The model is not predicting returns, directions, profits, or a trading signal. It predicts an index level one step ahead under a historical evaluation protocol.
+That makes the resulting estimate interpretable: it describes error on later historical dates that were not available to the model. It does not guarantee the same performance on future markets.
 
-## 2 · System at a glance
+## Dataset at a glance
 
-| Artefact | Responsibility | Status |
-|---|---|---|
-| `NSEI.csv` | Included historical price data | Read locally |
-| `Untitled.ipynb` | Preserved original exploration | Retained, not the recommended workflow |
-| `nifty_model.py` | Feature timing, chronological split, error metrics | 3 unit tests |
-| `main.py` | End-to-end baseline run | Executed locally |
-| `final_nifty_market_analysis.ipynb` | Guided trend, features, holdout plot | Executed; zero saved errors |
-| `docs/index.html` | Standalone walkthrough | Mirrors the project account |
+The included `data/NSEI.csv` contains daily Date, Open, High, Low, Close, Adjusted Close and Volume fields. The baseline deliberately uses only `Close`: the aim is to demonstrate a leakage-aware close-to-close forecast rather than to suggest a complete financial model.
 
-```mermaid
-flowchart TB
-    A[CSV rows] --> B[Parse Date and order rows]
-    B --> C[Previous close · 5-day SMA · 20-day SMA]
-    C --> D[Drop only rows without enough *past* history]
-    D --> E[Chronological split]
-    E --> F[Scale training features]
-    F --> G[Linear regression]
-    G --> H[Later-date holdout predictions]
-```
-
-## 3 · Data contract
-
-The local `NSEI.csv` contains **3,872** daily rows from **2008-01-01** through **2023-09-04**. It has Date, Open, High, Low, Close, Adjusted Close, and Volume fields. The baseline uses Close only because its task is explicitly a close-to-close persistence-style forecast.
-
-| Observation | Measured value | Consequence |
+| Data property | Value | Interpretation |
 |---|---:|---|
-| Close range | 2,524.20–19,979.15 | Error must be interpreted in context of a changing index level |
-| Median close | 8,219.27 | The series spans multiple market regimes |
-| Missing values | 180 | Feature construction drops incomplete lag rows rather than inventing prices |
-| Zero-volume rows | 1,256 | Volume is not used; zero may reflect source conventions rather than no market activity |
+| Rows | 3,872 | One local historical record per included day |
+| Period | 2008-01-01 → 2023-09-04 | Covers several market conditions, but ends in 2023 |
+| Close range | 2,524.20 → 19,979.15 | Index levels change substantially over the sample |
+| Usable feature rows | 3,852 | First 20 rows lack the past history needed by SMA-20 |
+| Training period | 2008-01-29 → 2021-01-13 | Earliest 80% of usable rows |
+| Holdout period | 2021-01-14 → 2023-09-04 | Latest 20%, never used for fitting |
 
-No claim is made that this is an adjusted, survivorship-bias-free, trading-grade market feed. It is the historical CSV stored in the repository.
+The CSV is a local learning dataset, not a trading-grade market feed. It does not establish adjustment policy, survivorship controls, execution prices, or all market events required for an investable strategy.
 
-## 4 · Feature timing
+## Features: what the model is allowed to know
 
-Every feature for day *t* is shifted. The close at day *t* is the target; it never appears in the input vector for its own prediction.
+For a target close on day *t*, every input comes from day *t−1* or earlier. This is the key leakage control.
 
-| Feature | Definition | Available before target close? |
+| Feature | Definition | Information available before close *t*? |
 |---|---|---|
-| `prev_close` | Close at t−1 | Yes |
-| `sma_5` | Mean close from t−5 through t−1 | Yes |
-| `sma_20` | Mean close from t−20 through t−1 | Yes |
-| `target_close` | Close at t | No — target only |
+| `prev_close` | Closing price at *t−1* | Yes |
+| `sma_5` | Mean close from the five preceding rows | Yes |
+| `sma_20` | Mean close from the twenty preceding rows | Yes |
+| `target_close` | Closing price at *t* | No — used only after prediction |
 
 ```mermaid
 flowchart LR
-    A[close t−20 … t−1] --> B[prev_close / SMA 5 / SMA 20]
-    B --> C[predict close t]
-    C -. target is never fed back .-> B
+    P[Closes t−20 … t−1] --> L[Previous close]
+    P --> S5[5-day moving average]
+    P --> S20[20-day moving average]
+    L --> M[Linear regression]
+    S5 --> M
+    S20 --> M
+    M --> T[Estimate close at t]
+    T -. compare after prediction .-> A[Actual close at t]
 ```
 
-This is the project’s explicit leakage guard. The accompanying tests assert that the split is chronological and that feature rows contain the expected shifted columns.
+The first 20 rows are dropped because there is no full prior 20-day window. That is an honest absence of history, not a missing value to be guessed.
 
-## 5 · The baseline
+## Baseline model
 
-The model is linear regression preceded by a standard scaler. This is intentionally modest. With only lagged price-level features, a complex model can easily memorise regime-specific shapes without learning a durable market mechanism.
-
-| Choice | Decision | Why |
-|---|---|---|
-| Split | First 80% train, final 20% test | Mimics a forward-in-time prediction boundary |
-| Features | Prior close, SMA 5, SMA 20 | Minimal signals known before the target close |
-| Model | Linear regression | Transparent baseline before model complexity |
-| Scaling | Training-only `StandardScaler` | Stable coefficients and reusable pipeline |
-| Metrics | MAE, RMSE, MAPE | Point error in both index units and relative terms |
-
-The resulting dates are 2008-01-29–2021-01-13 for training and 2021-01-14–2023-09-04 for the holdout. The first 20 rows are unavailable to the 20-day moving average by construction; that is missing history, not missing data to impute.
-
-## 6 · Results
-
-The verified local command run produced:
-
-| Metric | Value | Interpretation |
-|---|---:|---|
-| MAE | **119.36** index points | Typical absolute miss on later historical dates |
-| RMSE | **157.86** index points | Larger misses have more influence |
-| MAPE | **0.71%** | Mean absolute relative close-price error |
-
-```text
-Training dates: 2008-01-29 to 2021-01-13
-Test dates: 2021-01-14 to 2023-09-04
-MAE: 119.36 index points
-RMSE: 157.86 index points
-MAPE: 0.71%
-```
-
-The final notebook plots actual and predicted closes over the holdout period. A low MAPE is expected for an autoregressive level baseline in a smooth, high-valued series; it is not evidence of tradable excess return.
-
-## 7 · Why the score is not a strategy
-
-The model is evaluated on **level error**, not on a decision that trades money. A model can predict tomorrow’s level close to today’s level and still fail every question a strategy must answer: will the return be positive after costs, is uncertainty bounded, does it survive a market-regime break, and can it trade at available liquidity?
+The model is a `StandardScaler` followed by `LinearRegression`. This is a deliberately conservative choice: it produces an inspectable baseline before adding nonlinear models that could fit historical regimes more closely without showing a durable predictive mechanism.
 
 ```mermaid
 flowchart TB
-    A[Low historical close-price error] --> B{Does not imply}
-    B --> C[Correct direction]
-    B --> D[Positive return after costs]
-    B --> E[Robustness across regimes]
+    A[Past close features] --> B[Fit scaler on training rows only]
+    B --> C[Fit linear regression]
+    C --> D[Apply the same scaler to holdout rows]
+    D --> E[Generate chronological holdout estimates]
+    E --> F[Compare with recorded close]
+```
+
+The scaler is fitted only on training rows. Fitting it on the entire series would let holdout distribution information leak into preprocessing.
+
+## Verified holdout results
+
+Running `python -m src.train` against the included CSV produces:
+
+| Metric | Result | Plain-language meaning |
+|---|---:|---|
+| MAE | **119.36 index points** | Typical absolute miss across holdout days |
+| RMSE | **157.86 index points** | Heavier penalty for larger misses |
+| MAPE | **0.71%** | Mean absolute level error relative to the actual close |
+
+![Actual and predicted NIFTY closes throughout the chronological holdout](docs/assets/holdout_actual_vs_predicted.png)
+
+The lines are close because the previous close and moving averages strongly track a smooth index *level*. This does not mean the model forecasts profitable price movements. A level forecast can be accurate while missing return direction, failing during a regime shift, or losing after realistic costs.
+
+## Reading the metrics correctly
+
+```mermaid
+flowchart TD
+    A[Low historical level error] --> B{Does not establish}
+    B --> C[Correct next-day return direction]
+    B --> D[Profit after spreads, fees and slippage]
+    B --> E[Robustness across unseen regimes]
     B --> F[Investment suitability]
 ```
 
-## 8 · The original failure
+MAE answers “how far off were predictions on average?” RMSE puts more emphasis on large misses. MAPE makes the error relative to index level. None evaluate a trade: the project contains no buy/sell signal, position sizing, turnover, drawdown, transaction-cost model, or out-of-sample live execution.
 
-The original notebook had useful trend and moving-average exploration, but repeated its training/evaluation cells and randomly split the series. It also placed predictions against the final date range irrespective of the randomly selected test dates, visually suggesting an ordered forecast where the evaluation was unordered.
-
-The replacement preserves the original ideas—trend line, previous close, and moving average—while making the time boundary explicit and testable. The old notebook remains in the repository rather than being deleted.
-
-## 9 · Verification
-
-```text
-3 passed in 1.60s
-Final notebook: 12 cells; saved errors: 0
-```
-
-| Check | Guard |
-|---|---|
-| Feature construction | Required lag columns exist and precede target price |
-| Chronological split | Latest train date is before earliest test date |
-| Metrics | MAE/RMSE/MAPE return the intended price-error values |
-| Command-line run | Reads the included CSV and measures a real later-date holdout |
-
-## 10 · Limitations
-
-- **One historical file:** the included data ends in September 2023 and may contain source-specific quirks.
-- **Level prediction, not return prediction:** point accuracy is not a trading evaluation.
-- **No walk-forward retraining:** one fixed split is a baseline, not a full rolling-origin study.
-- **Three price-only features:** news, rates, volatility, liquidity, corporate actions, and macro conditions are absent.
-- **No transaction-cost model:** there is no strategy, position sizing, turnover, or drawdown analysis.
-- **Regime sensitivity:** the series covers several market regimes but the model does not explicitly detect them.
-
-**Current state:** verified educational baseline. **Open next step:** compare against a naïve previous-close benchmark under walk-forward validation before adding model complexity.
-
-## A · Commands and layout
+## Run it yourself
 
 ```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python main.py
-python -m pytest tests -q
+python -m pip install -r requirements.txt
+python -m src.train
+python -m pytest -q
 ```
+
+To regenerate the figures shown above from the CSV and baseline:
+
+```powershell
+python -m scripts.generate_figures
+```
+
+The test suite protects four important contracts:
+
+1. lagged feature columns exist and use prior rows;
+2. the training set ends before the test set begins;
+3. error metrics use the expected arithmetic; and
+4. the command-line runner resolves the dataset from `data/NSEI.csv`.
+
+## Project map
 
 ```text
-nifty/
-├── NSEI.csv
-├── Untitled.ipynb                  # preserved original
-├── final_nifty_market_analysis.ipynb
-├── nifty_model.py
-├── main.py
-├── tests/
-└── docs/index.html
+10-nifty-price-analysis/
+├── data/NSEI.csv                   # included historical input data
+├── src/
+│   ├── nifty_model.py              # features, time split and metrics
+│   └── train.py                    # executable baseline runner
+├── tests/test_nifty_model.py       # regression checks
+├── scripts/generate_figures.py     # documentation figure generator
+├── notebooks/                      # exploratory and guided notebook records
+├── docs/
+│   ├── index.html                  # standalone technical walkthrough
+│   └── assets/                     # data-backed charts
+└── requirements.txt
 ```
 
-> Educational historical analysis only. This repository does not provide financial advice or investment recommendations.
+## Limitations and next steps
+
+- It uses one historical CSV which ends in September 2023.
+- It predicts an index level, not a return, direction, volatility, or signal.
+- It uses a single fixed holdout rather than rolling walk-forward retraining.
+- It excludes macro events, news, interest rates, liquidity, corporate actions, and market microstructure.
+- It does not benchmark against a naïve “tomorrow equals today” baseline.
+
+The right next step is not a larger model. First, add a naïve persistence benchmark and walk-forward evaluation, then report errors across distinct market periods. That would show whether complexity adds anything beyond the previous close.
+
+For a presentation-ready version of this explanation, open the [technical walkthrough](docs/index.html).

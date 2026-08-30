@@ -1,235 +1,169 @@
-# 11 — Neural Network Experiments
+# Neural Network Experiments: Learning From Noise
 
-**A Keras sandbox for comparing network architectures on synthetic data.**
+This project is a Keras learning laboratory built around a deliberately
+unforgiving dataset: random feature vectors paired with random binary labels.
+Because there is no relationship between inputs and targets, the project makes
+one important machine-learning idea impossible to miss:
 
-September 2023 · TensorFlow/Keras · Dense networks · Batch normalisation · Dropout · Mixed precision
+> A high training score does not prove a model has learned anything useful.
 
----
+The experiments compare a small dense network with a deeper regularised
+network, practise the TensorFlow/Keras workflow, and show why validation on
+independent data matters. This is not a real classification task and the
+reported accuracy values are not performance claims.
 
-> This project exists to practise the Keras API and observe how architectural
-> choices behave, not to solve a task. The data is **generated at random**, so
-> the accuracy figures below are exactly what they should be — and that is the
-> point worth understanding.
+![Comparison of the simple and regularised network architectures](docs/assets/architecture_comparison.svg)
 
----
-
-## Contents
-
-1. [What this project is](#1--what-this-project-is)
-2. [The data](#2--the-data)
-3. [The two architectures](#3--the-two-architectures)
-4. [Results, and why they look like that](#4--results-and-why-they-look-like-that)
-5. [Techniques practised](#5--techniques-practised)
-6. [Layout](#6--layout)
-7. [Running it](#7--running-it)
-
----
-
-## 1 · What this project is
-
-A notebook that builds several feed-forward networks, trains each on randomly
-generated data, and compares how they behave.
+## The experiment in one view
 
 ```mermaid
 flowchart LR
-    A["Generate random data<br/>X ~ uniform, y ~ random 0/1"] --> B["Build a network"]
-    B --> C["Train"]
-    C --> D["Compare<br/>loss and accuracy"]
-    D -->|"change the architecture"| B
-
-    style A fill:#fdf1e7,stroke:#b4532a,color:#1f2933
-    style B fill:#eaf2ed,stroke:#2f6f4e,color:#1f2933
-    style D fill:#e8eef6,stroke:#3a6ea5,color:#1f2933
+    A[Generate random feature matrix X] --> C[Split into training and validation rows]
+    B[Generate independent random labels y] --> C
+    C --> D[Train a neural network]
+    D --> E[Compare training and validation behaviour]
+    E --> F[Ask: signal learned or noise memorised?]
 ```
 
-The purpose is mechanical fluency: how to stack layers, where batch
-normalisation goes, what dropout does to the training curve, how to save and
-reload a model, and how to enable mixed-precision training.
+Each run generates 1,000 samples with 1,000 random features and a binary target
+drawn independently of those features. In a balanced binary problem with no
+signal, a model should generalise at roughly 50% accuracy. That is the baseline
+for interpretation—not a disappointing result.
 
----
+## Why random labels are useful
 
-## 2 · The data
+Synthetic random data isolates model capacity from real-world complexity. No
+model can discover a genuine predictive rule because none exists. If a flexible
+network drives training accuracy upward, it is fitting accidental patterns in
+the finite sample. When it is evaluated on new random rows, those accidental
+patterns disappear.
 
-There is no dataset. Every run generates its own:
+![Diagram explaining high training accuracy versus chance validation accuracy on random labels](docs/assets/random_label_interpretation.svg)
+
+This makes the project a clean demonstration of overfitting:
+
+| Observation | Correct interpretation |
+|---|---|
+| Training accuracy rises on random labels | The network has enough capacity to memorise the training set. |
+| Validation accuracy stays around chance | The model has not found a transferable relationship. |
+| Regularisation suppresses memorisation | The model is less able to fit sample-specific noise. |
+| A single unusually high validation result | Investigate the split, seed, labels and reuse of state before making a claim. |
+
+## Data design
 
 ```python
-X = np.random.rand(1000, 1000)      # 1,000 samples, 1,000 features
-y = np.random.randint(2, size=1000) # random binary labels
+X = np.random.rand(1000, 1000)      # 1,000 samples × 1,000 random features
+y = np.random.randint(2, size=1000) # independent random binary labels
 ```
+
+The design intentionally violates the usual project goal of finding signal.
+Here it acts as a controlled negative example. If validation accuracy reliably
+surpassed chance on repeated independent runs, that would be a reason to audit
+the procedure for leakage or unintended correlations—not evidence of a useful
+classifier.
 
 ```mermaid
 flowchart TD
-    A["np.random.rand(1000, 1000)"] --> C["Train / validation split"]
-    B["np.random.randint(2, size=1000)"] --> C
-    C --> D["800 train"]
-    C --> E["200 validation"]
-
-    style A fill:#fdf1e7,stroke:#b4532a,color:#1f2933
-    style B fill:#fdf1e7,stroke:#b4532a,color:#1f2933
+    A[Random features] --> C[No causal or statistical label signal]
+    B[Random labels] --> C
+    C --> D{What does a model score mean?}
+    D --> E[High train / chance validation: memorisation]
+    D --> F[High validation repeatedly: audit for leakage]
 ```
 
-**The labels are independent of the features.** There is no relationship to
-learn, by construction. A later cell reduces the input to 100 features to make
-the runs faster, but the data is generated the same way.
+## Architectures compared
 
----
+### Simple dense network
 
-## 3 · The two architectures
-
-### Simple
-
-```mermaid
-flowchart TD
-    A["Input (1000,)"] --> B["Dense 128, ReLU"]
-    B --> C["Dense 1, sigmoid"]
-
-    style A fill:#e8eef6,stroke:#3a6ea5,color:#1f2933
-    style C fill:#eaf2ed,stroke:#2f6f4e,color:#1f2933
+```text
+Input (1,000)
+    → Dense(128, ReLU)
+    → Dense(1, sigmoid)
 ```
 
-Two layers. 128,000 parameters in the first dense layer alone.
+The first dense layer alone has 128,128 trainable parameters. That is ample
+capacity relative to a 1,000-sample random training set, so it can fit noise.
 
-### Improved
+### Regularised dense network
 
-```mermaid
-flowchart TD
-    A["Input (1000,)"] --> B["Dense 256, ReLU"]
-    B --> C["BatchNormalization"]
-    C --> D["Dropout 0.5"]
-    D --> E["Dense 128, ReLU"]
-    E --> F["BatchNormalization"]
-    F --> G["Dropout 0.5"]
-    G --> H["Dense 1, sigmoid"]
-
-    style A fill:#e8eef6,stroke:#3a6ea5,color:#1f2933
-    style C fill:#fdf1e7,stroke:#b4532a,color:#1f2933
-    style F fill:#fdf1e7,stroke:#b4532a,color:#1f2933
-    style H fill:#eaf2ed,stroke:#2f6f4e,color:#1f2933
+```text
+Input (1,000)
+    → Dense(256, ReLU) → BatchNormalization → Dropout(0.5)
+    → Dense(128, ReLU) → BatchNormalization → Dropout(0.5)
+    → Dense(1, sigmoid)
 ```
 
-Wider, deeper, and regularised at every stage.
-
-| | Simple | Improved |
-|---|---|---|
-| Hidden layers | 1 | 2 |
-| Batch normalisation | — | after each hidden layer |
-| Dropout | — | 0.5 after each hidden layer |
-| Epochs | 10 | 20 |
-
-**What each addition does.** `BatchNormalization` rescales each layer's outputs
-to a stable distribution, which keeps gradients well-behaved and lets training
-use a higher learning rate. `Dropout(0.5)` randomly zeroes half the activations
-on each training pass, so the network cannot rely on any single unit.
-
----
-
-## 4 · Results, and why they look like that
-
-| Model | Training accuracy | Validation accuracy |
-|---|---:|---:|
-| Simple, 10 epochs | rises steadily | **0.86** on one evaluation |
-| Improved, 20 epochs | ~0.51 | **~0.50** |
-
-**The improved model scoring 50% is the correct result.** The labels are random,
-so 50% is the ceiling — there is genuinely nothing to learn. Regularisation is
-doing its job: batch normalisation and dropout prevent the network from
-memorising noise, so it reports the honest score.
-
-**The simple model's 0.86 is memorisation.** With 1,000 features and 1,000
-samples and no regularisation, the network has more than enough capacity to fit
-random noise exactly. A high number here measures capacity, not skill.
-
-```mermaid
-flowchart TD
-    A["Random labels<br/>nothing to learn"] --> B{"Model has<br/>regularisation?"}
-    B -->|"no"| C["Memorises the noise<br/>→ high training accuracy"]
-    B -->|"yes"| D["Cannot memorise<br/>→ ~50%, the honest score"]
-
-    style C fill:#fdf1e7,stroke:#b4532a,color:#1f2933
-    style D fill:#eaf2ed,stroke:#2f6f4e,color:#1f2933
-```
-
-This is the most useful thing the project demonstrates: on data with no signal,
-a high training score is evidence of over-capacity, and a score at chance level
-is evidence the regularisation is working.
-
----
-
-## 5 · Techniques practised
-
-| Technique | Where |
+| Design choice | Role in this experiment |
 |---|---|
-| `keras.Sequential` model building | every cell |
-| Batch normalisation | improved architecture |
-| Dropout regularisation | improved architecture |
-| Mixed-precision training (`LossScaleOptimizer`) | first cell |
-| Train/validation splitting with scikit-learn | throughout |
-| Saving and reloading models | `models/` |
-| Writing generated data to CSV | later cells |
+| Dense + ReLU layers | Give the model flexible nonlinear capacity. |
+| Batch normalization | Keeps intermediate activations in a more stable range during optimisation. |
+| Dropout at 0.5 | Randomly removes half of activations during training, making memorisation harder. |
+| Sigmoid output | Returns a probability-like value for a binary label. |
+| Binary cross-entropy | Measures error for a binary probabilistic prediction. |
 
-**Mixed precision** runs most operations in 16-bit floating point instead of
-32-bit, roughly halving memory use and speeding up training on supported GPUs.
-`LossScaleOptimizer` wraps the optimizer to scale the loss upward before the
-backward pass, preventing small gradients from underflowing to zero in 16-bit.
+Batch normalisation and dropout are not magic generalisation switches. They can
+reduce a network’s tendency to fit noise, but they cannot create signal that is
+absent from the data.
 
-The notebook's saved output records `Could not find cuda drivers on your
-machine, GPU will not be used` — these runs were on CPU, so the mixed-precision
-setup was exercised but not accelerated.
+## What was practised
 
----
+The notebook exercises the practical mechanics of the Keras API:
 
-## 6 · Layout
+- building `keras.Sequential` models;
+- compiling binary classifiers with Adam and binary cross-entropy;
+- creating train/validation splits;
+- applying batch normalisation and dropout;
+- using early stopping;
+- saving models in `.h5` and TensorFlow SavedModel formats; and
+- configuring mixed precision through `LossScaleOptimizer`.
 
-```
-11-neural-net-experiments/
-├── README.md                                 this walkthrough
-├── requirements.txt
-├── notebooks/
-│   └── 01_neural_network_experiments.ipynb   the experiments, with saved output
-├── models/
-│   ├── simple_nn_model.h5                    the simple architecture, trained
-│   ├── improved_nn_model.h5                  the regularised architecture
-│   └── improved_nn_model/                    the same, in SavedModel format
-└── docs/
-    └── assets/
-```
+Mixed precision uses lower-precision arithmetic where hardware supports it,
+which can reduce memory use and increase throughput. It does not improve the
+statistical quality of a model, and its benefit depends on compatible hardware.
 
-Both saved-model formats are kept because the notebook demonstrates each:
-the single-file `.h5` format and TensorFlow's `SavedModel` directory layout.
+## How to run the experiments
 
----
-
-## 7 · Running it
-
-```bash
-cd 11-neural-net-experiments
+```powershell
 python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 jupyter notebook notebooks/01_neural_network_experiments.ipynb
 ```
 
-No dataset is needed — the notebook generates its own on every run. Because the
-data is random and unseeded, your numbers will differ from the saved output.
+No external dataset download is needed. The random generator is unseeded, so
+the exact curves and accuracy values will differ between runs. For a repeatable
+teaching experiment, add explicit NumPy and TensorFlow random seeds and log
+every split and hyperparameter.
 
-Load a trained model:
+## Project guide
 
-```python
-from tensorflow import keras
-
-model = keras.models.load_model("models/improved_nn_model.h5")
-model.summary()
+```text
+11-neural-net-experiments/
+├── README.md                         # self-contained project guide
+├── notebooks/
+│   └── 01_neural_network_experiments.ipynb
+├── models/
+│   ├── simple_nn_model.h5            # saved teaching artefact
+│   ├── improved_nn_model.h5           # saved teaching artefact
+│   └── improved_nn_model/             # TensorFlow SavedModel export
+├── docs/
+│   ├── index.html                     # standalone visual walkthrough
+│   └── assets/                        # architecture and interpretation diagrams
+└── requirements.txt
 ```
 
----
+The saved models show Keras serialisation formats. Because the input/label data
+is regenerated and unseeded, they should not be presented as reusable trained
+classifiers.
 
-## Scope
+## Honest next steps
 
-Synthetic data, no task, no claim. This project is a record of learning the
-Keras API and the behaviour of common regularisation layers. The accuracy
-figures describe how each architecture responds to noise and are not a
-performance result.
+To turn this from an API practice notebook into a rigorous experiment, first
+make it reproducible: fix random seeds, remove duplicate exploratory code,
+record environment versions, and run repeated trials. Then add a deliberately
+learnable synthetic task with a known data-generating rule. Compare its results
+against the random-label control so that generalisation—not a headline training
+score—remains the success criterion.
 
----
-
-**Previous:** [10 — NIFTY Price Analysis](../10-nifty-price-analysis/) · **Next:** [12 — Image Super-Resolution](../12-image-super-resolution/) · **Portfolio:** [index](../)
+Open the [standalone walkthrough](docs/index.html) for a presentation-ready
+version of the experiment.

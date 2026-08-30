@@ -1,6 +1,16 @@
 """Train and evaluate the California House Price Predictor from the command line."""
 
+from pathlib import Path
+import sys
+
 from sklearn.datasets import fetch_california_housing
+
+# ``python src/train.py`` places ``src/`` rather than the repository root on
+# Python's import path.  Adding the root makes the documented direct command
+# work; the normal package import then works for both script and module usage.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.housing_model import build_pipeline, evaluate_predictions, feature_importance, split_data
 

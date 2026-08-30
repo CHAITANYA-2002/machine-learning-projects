@@ -1,92 +1,15 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Voice-Guided Grocery Cart | Technical Walkthrough</title>
-  <style>
-    :root{--ink:#13211f;--muted:#536661;--bg:#f4f8f5;--card:#fff;--line:#dce8e1;--a:#16765c;--warn:#915000}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 Inter,Segoe UI,Arial,sans-serif}header{padding:72px max(7vw,24px) 60px;color:#fff;background:linear-gradient(125deg,#0c332b,#16765c,#65ad7b)}main{max-width:1080px;margin:-28px auto 56px;padding:0 24px}section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:30px;margin:20px 0;box-shadow:0 8px 28px #1231250a}h1{font-size:clamp(2.1rem,5vw,4.5rem);line-height:1.05;margin:12px 0;max-width:900px}h2{margin-top:0;font-size:1.55rem}.eyebrow,.badge{text-transform:uppercase;letter-spacing:.1em;font-weight:700;font-size:.75rem}.badge{display:inline-block;border-radius:99px;padding:5px 10px;background:#fff1df;color:var(--warn)}.lede{font-size:1.22rem;max-width:850px}.flow{white-space:pre;overflow:auto;border-radius:11px;background:#102c25;color:#e0f8e9;padding:20px;font:14px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(225px,1fr));gap:14px}.tile{padding:18px;background:#eef9f2;border-left:4px solid var(--a);border-radius:7px}table{width:100%;border-collapse:collapse}th,td{text-align:left;vertical-align:top;padding:11px;border-bottom:1px solid var(--line)}th{color:var(--muted)}code{background:#edf5f0;padding:2px 5px;border-radius:4px}.callout{padding:18px;background:#fff5e8;border-left:4px solid #d77a00;border-radius:9px}a{color:#126249}footer{text-align:center;color:var(--muted);padding:12px}
-  </style>
-</head>
-<body>
-  <header>
-    <div class="eyebrow">Machine-learning portfolio / speech + LLM + web automation</div>
-    <h1>Voice-guided grocery cart prototype</h1>
-    <p class="lede">A safety-aware walkthrough of a desktop proof of concept that turns speech into validated cart proposals and browser-assisted shopping—not autonomous purchasing.</p>
-    <span class="badge">Partially runnable · live account automation not verified</span>
-  </header>
-  <main>
-    <section>
-      <h2>Primary design decision: no autonomous checkout</h2>
-      <p>Speech is noisy, LLM output is probabilistic, retailer pages change, and purchases are consequential. The correct boundary is an assistant that can propose and add explicitly confirmed items, then hands control back to the user for final cart, delivery, price, substitution, and payment decisions.</p>
-      <div class="callout"><strong>Hard stop:</strong> do not bypass MFA, captchas, retailer safeguards, or the user’s final review. A voice command is not approval for a financial transaction.</div>
-    </section>
-    <section>
-      <h2>End-to-end data flow</h2>
-      <div class="flow">microphone → speech recognition → transcript → OpenAI proposal
-                                              │
-                                              ▼
-                                  JSON parse + schema/length/bounds checks
-                                              │
-                                              ▼
-                              explicit user read-back and confirmation
-                                              │
-                                              ▼
-                          Selenium cart operation → visible cart review
-                                              │
-                                              ▼
-                                  manual retailer checkout / payment</div>
-      <p>Secrets come from environment variables only. The `.env.example` file names every required value without exposing a value; `.env` and browser logs remain ignored.</p>
-    </section>
-    <section>
-      <h2>Untrusted-model boundary</h2>
-      <table><thead><tr><th>Input</th><th>Risk</th><th>Control added</th></tr></thead><tbody>
-        <tr><td>LLM JSON</td><td>Malformed, nested, overly long, or unexpected data</td><td>Only a dictionary with bounded text is accepted.</td></tr>
-        <tr><td>Quantity</td><td>Fractional, boolean, negative, or excessive amount</td><td>Only an integer 1–100 is accepted.</td></tr>
-        <tr><td>Speech transcript</td><td>Misrecognition and ambiguity</td><td>User must hear/see and confirm proposed cart lines.</td></tr>
-        <tr><td>Retailer page</td><td>Selector drift, substitutions, prices, MFA/captcha</td><td>Visible review and manual final checkout.</td></tr>
-      </tbody></table>
-      <p>The validation module does not make an LLM safe. It narrows the data shape before browser automation and ensures invalid proposals fail closed.</p>
-    </section>
-    <section>
-      <h2>Threat model</h2>
-      <div class="grid">
-        <div class="tile"><strong>Secrets</strong><br>Keys and passwords must stay out of source, logs, screenshots, and chat transcripts.</div>
-        <div class="tile"><strong>Unwanted purchase</strong><br>Require separate confirmation for cart changes; never automate payment.</div>
-        <div class="tile"><strong>Data disclosure</strong><br>Voice transcripts may reveal preferences, addresses, or health-related items; retain minimally.</div>
-        <div class="tile"><strong>Site drift</strong><br>Fail safely when selectors or retailer flows change; do not attempt bypasses.</div>
-      </div>
-    </section>
-    <section>
-      <h2>What was verified</h2>
-      <div class="flow">tests/test_order_validation.py
-  ├─ valid item text is normalised
-  ├─ invalid payload structures are rejected
-  ├─ malformed details are rejected
-  ├─ valid quantities are accepted
-  └─ boolean, fractional, negative, zero, text, and >100 quantities fail
-
-Result: 13 tests passed
-Syntax: four Python entry points compiled successfully</div>
-      <p>These checks intentionally avoid calling OpenAI, opening a microphone, logging into any site, or controlling a browser. They establish a deterministic local boundary only.</p>
-    </section>
-    <section>
-      <h2>Execution checklist for an authorised local demo</h2>
-      <ol>
-        <li>Create a virtual environment and install the pinned requirements.</li>
-        <li>Copy `.env.example` to ignored `.env`; use only the user’s own secrets.</li>
-        <li>Leave store automation disabled until selectors and retailer terms are reviewed.</li>
-        <li>Run the test suite first.</li>
-        <li>Use a visible browser and inspect the cart before each action.</li>
-        <li>Stop at retailer checkout; the user completes payment manually.</li>
-      </ol>
-    </section>
-    <section>
-      <h2>Current conclusion</h2>
-      <p>This is a useful prototype for integrating voice I/O, structured LLM extraction, and browser automation. It is not ready to act independently on a consumer account. The next professional step is a reviewed UI with per-action approval, cart-diff checks, redacted audit logs, mocked external integration tests, and accessibility/consent review.</p>
-      <p><a href="../README.md">Read the project README</a></p>
-    </section>
-  </main>
-  <footer>Every external, account-affecting action remains subject to user review and retailer controls.</footer>
-</body>
-</html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Voice-Guided Grocery Cart | Technical Walkthrough</title><style>:root{--ink:#172536;--brand:#176e73;--soft:#ecf8f7;--line:#d9e6e6;--muted:#566a6c;--warn:#995d08}*{box-sizing:border-box}body{margin:0;background:#f5fbfb;color:var(--ink);font:16px/1.7 Inter,Segoe UI,Arial,sans-serif}header{background:linear-gradient(125deg,#10444d,#217f80);color:#fff;padding:76px max(7vw,24px) 72px}main{max-width:1080px;margin:-30px auto 56px;padding:0 24px}section{background:#fff;border:1px solid var(--line);border-radius:17px;padding:32px;margin:20px 0;box-shadow:0 10px 30px #153b3d0c}h1{font-size:clamp(2.4rem,6vw,4.6rem);line-height:1.05;margin:12px 0}.eyebrow{font-size:.76rem;font-weight:800;letter-spacing:.12em}.lede{font-size:1.2rem;max-width:850px}.badge{display:inline-block;background:#e1f5f2;color:#15595d;border-radius:99px;padding:5px 11px;font-size:.8rem;font-weight:800}.figure{width:100%;display:block;border:1px solid var(--line);border-radius:11px;margin:20px 0 5px}.caption{text-align:center;color:var(--muted);font-size:.9rem;margin:0}.flow{background:#15393e;color:#e9f9f7;padding:20px;border-radius:11px;white-space:pre-wrap;font:14px/1.65 ui-monospace,Consolas,monospace}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:13px}.tile{background:var(--soft);border-left:4px solid var(--brand);padding:16px;border-radius:8px}table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top;text-align:left}th{color:var(--muted)}.notice{background:#fff5e7;border-left:4px solid #c88418;padding:17px;border-radius:8px}pre{background:#172d31;color:#edf9f7;padding:18px;border-radius:10px;overflow:auto}code{background:#e9f3f3;padding:2px 5px;border-radius:4px}a{color:var(--brand);font-weight:700}footer{text-align:center;color:var(--muted);padding:10px 24px 36px}</style></head><body><header><div class="eyebrow">MACHINE-LEARNING PORTFOLIO · SPEECH + LLM + BROWSER ASSISTANCE</div><h1>Voice-guided grocery cart</h1><p class="lede">A desktop proof of concept that turns speech into validated cart proposals and browser-assisted shopping, while keeping checkout and payment firmly in the user’s hands.</p><span class="badge">Cart assistance only · manual checkout required</span></header><main>
+<section><h2>What the assistant is allowed to do</h2><p>The assistant can transcribe a request, propose structured cart lines, validate those lines, ask for explicit confirmation and add confirmed items to a visible browser cart. It is not allowed to capture payment details, one-time codes, addresses, submit an order, or circumvent a retailer safeguard.</p><img class="figure" src="assets/voice_to_cart_flow.svg" alt="Voice shopping flow from speech to manual checkout."><p class="caption">Each step has a purpose; no speech command alone authorises a transaction.</p></section>
+<section><h2>Why LLM output is never browser input by default</h2><div class="flow">speech → transcript → LLM proposal → validation → user confirmation → visible cart action
+                                                │
+                                          invalid proposal → clarify, do not automate</div><p>The validator admits only compact text fields and integer quantities from 1 to 100. It rejects arrays, nested values, booleans, empty text and oversized requests. This narrows the automation surface, but it cannot decide whether the selected retailer product is the one the user intended.</p><table><thead><tr><th>Control</th><th>Protects against</th></tr></thead><tbody><tr><td>Schema and text bounds</td><td>Malformed model output and oversized browser queries</td></tr><tr><td>Quantity bounds</td><td>Accidental or fabricated large cart quantities</td></tr><tr><td>Spoken/displayed confirmation</td><td>Speech-recognition and intent-matching mistakes</td></tr><tr><td>Visible cart review</td><td>Wrong item, price, substitution or availability</td></tr></tbody></table></section>
+<section><h2>Control layers</h2><img class="figure" src="assets/control_layers.svg" alt="Four control layers covering input, model, browser and commitment safety."><p class="caption">Reliable control requires multiple boundaries: no single validation rule can make browser automation safe.</p><div class="notice"><strong>Hard stop:</strong> MFA, captchas, age restrictions, site changes, cart mismatches and checkout all transfer control to the user. The project does not bypass them.</div></section>
+<section><h2>How checkout is kept manual</h2><p>The historical complete-payment method is preserved for learning provenance but is unreachable. The supported checkout guard returns a message directing the user to complete payment in the visible retailer UI, without collecting card number, CVV, OTP or address data.</p><div class="flow">confirmed cart → visible retailer cart → user reviews → assistant stops → user completes checkout manually</div></section>
+<section><h2>Reproduce the safe checks</h2><pre>python -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+Copy-Item .env.example .env
+python -m pytest -q
+python -m py_compile src/order_validation.py src/checkout_safety.py src/voice.py src/new.py src/voice_shop_openai.py</pre><p>The tests cover validation and the manual-checkout guard. They do not invoke a microphone, OpenAI API, retailer login or live browser interaction. Put credentials only in the ignored <code>.env</code> file and keep automation disabled until it is explicitly reviewed and authorised.</p><p><a href="../README.md">Read the full README</a></p></section>
+</main><footer>Prototype only. User authority, transparent review and manual payment are non-negotiable.</footer></body></html>

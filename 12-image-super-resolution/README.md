@@ -1,149 +1,152 @@
-# Image Enhancer — ESRGAN / RRDB Super-Resolution
+# ESRGAN / RRDB Image Super-Resolution
 
-**A preserved ESRGAN-style ×4 image-super-resolution experiment, with its original RRDB architecture and sample images retained locally.**
+This project explores **4× single-image super-resolution** with an ESRGAN-style
+Residual-in-Residual Dense Block network (RRDBNet). Given a low-resolution RGB
+image, the network produces an image that is four times wider and four times
+taller by synthesising plausible high-frequency detail from patterns learned
+by a pretrained checkpoint.
 
-`4 RRDB utility scripts · 6 original image assets · pretrained checkpoint absent · inference intentionally unverified`
+That last phrase matters: super-resolution creates a learned reconstruction. It
+does **not** recover ground-truth pixels that were absent from the source.
+This repository is therefore appropriate for learning, presentation, and
+authorised creative experiments—not forensic, medical, legal, identity, or
+safety-critical interpretation.
 
-> Super-resolution creates a plausible high-resolution image conditioned on a learned image prior. It does **not** recover ground-truth pixels that the source image did not contain. This is the most important interpretation boundary in the project.
+![RRDBNet 4x super-resolution pipeline](docs/assets/rrdb_x4_pipeline.svg)
 
----
+## The problem this project solves
 
-## Contents
-
-| | | |
-|---|---|---|
-| [1 · Enhancement is not recovery](#1--enhancement-is-not-recovery) | [5 · Inference path](#5--inference-path) | [9 · Verification and state](#9--verification-and-state) |
-| [2 · System at a glance](#2--system-at-a-glance) | [6 · Architecture](#6--architecture) | [10 · Responsible use](#10--responsible-use) |
-| [3 · What is preserved](#3--what-is-preserved) | [7 · Model-weight boundary](#7--model-weight-boundary) | [A · Commands and layout](#a--commands-and-layout) |
-| [4 · Data contract](#4--data-contract) | [8 · Original operational risks](#8--original-operational-risks) | |
-
-## 1 · Enhancement is not recovery
-
-The model takes a low-resolution RGB image and synthesises a four-times-larger image. Its output can be sharper and visually more plausible, but a detail in the output is a learned reconstruction—not proof that the detail existed in the input.
+An image with dimensions `H × W × 3` has limited spatial detail. Enlarging it
+with conventional interpolation creates more pixels but cannot infer texture or
+edges that were not recorded. A trained super-resolution network instead uses a
+learned image prior to generate a `4H × 4W × 3` output that often appears more
+detailed.
 
 ```mermaid
 flowchart LR
-    A[Low-resolution pixels] --> B[Learned RRDB prior]
-    B --> C[Plausible ×4 image]
+    A[Low-resolution RGB pixels] --> B[RRDBNet + learned checkpoint]
+    B --> C[Plausible 4× RGB output]
     C -. is not .-> D[Recovered source evidence]
 ```
 
-This rules out forensic, medical, legal, identity, and safety-critical interpretation. An enhanced image may be useful for visual presentation or non-critical creative work; it must not replace the original image in an evidentiary workflow.
+The output can be useful visually, but individual generated details must always
+be treated as model-produced content.
 
-## 2 · System at a glance
+## How RRDBNet produces a 4× output
+
+RRDBNet first extracts 64 feature channels from the RGB input. It then passes
+those features through 23 **Residual-in-Residual Dense Blocks**. Each block
+contains three dense residual blocks, where later convolutions receive earlier
+feature maps as well as the original block input. Residual connections make the
+deep path easier to optimise; residual scaling (`0.2`) keeps that path from
+overwhelming the main signal.
+
+Finally, two nearest-neighbour upsampling stages, each followed by convolution,
+grow the spatial size by `2 × 2 = 4`.
 
 ```mermaid
 flowchart LR
-    A[LR/*.jpg or *.png] --> B[OpenCV BGR read]
-    B --> C[RGB tensor, values 0–1]
-    C --> D[RRDBNet + pretrained checkpoint]
-    D --> E[Clamp 0–1]
-    E --> F[results/*_rlt.png]
+    A[RGB input H × W] --> B[3→64 convolution]
+    B --> C[23 RRDB blocks]
+    C --> D[Trunk residual connection]
+    D --> E[Upsample 2× + convolution]
+    E --> F[Upsample 2× + convolution]
+    F --> G[RGB reconstruction 4H × 4W]
 ```
 
-| Artefact | Responsibility | State |
-|---|---|---|
-| `RRDBNet_arch.py` | RRDB residual-dense network definition | Preserved source |
-| `test.py` | Original batch inference loop | Requires absent weight file |
-| `net_interp.py` | Blend two compatible checkpoints | Requires both absent weight files |
-| `transer_RRDB_models.py` | Checkpoint-key conversion utility | Requires source checkpoint |
-| Sample JPG/PNG files | Original experiment assets | Present locally |
-| `UPSTREAM_ESRGAN_REFERENCE.md` | Preserved upstream ESRGAN documentation | Renamed, not removed |
-
-## 3 · What is preserved
-
-This is not a new model trained by this repository. The useful original material is retained: the RRDB network architecture, inference/conversion utilities, sample images, and upstream ESRGAN reference. The project README now distinguishes your local experiment from upstream claims and benchmark tables.
-
-The upstream reference is valuable background, but its published Set5/Set14/Urban100 scores belong to the upstream model and evaluation setup. They are not results produced by this checkout.
-
-## 4 · Data contract
-
-Inputs are images placed under `LR/`; outputs are written under `results/`. The repository contains several JPEG and PNG assets, but it does not contain a controlled low-resolution/high-resolution benchmark pair. Therefore PSNR, SSIM, LPIPS, or perceptual-quality claims cannot be measured here.
-
-| Input requirement | Why |
+| Part | Role |
 |---|---|
-| Readable RGB image | The network is instantiated with three input channels |
-| Separate original retained | Output should never overwrite an evidentiary source image |
-| Known image rights | Enhancement does not change copyright, privacy, or consent obligations |
-| Comparable HR reference for a quality claim | Without it, visual quality is illustrative only |
+| Dense residual block | Reuses intermediate feature maps to model textured detail. |
+| RRDB | Nests three dense residual blocks behind another residual connection. |
+| Residual scaling | Multiplies residual updates by 0.2 for stable deep feature flow. |
+| Two 2× upsampling stages | Defines the model’s total 4× spatial scaling. |
+| Pretrained checkpoint | Supplies the learned parameters; the Python architecture alone has random weights. |
 
-## 5 · Inference path
+## A safe interpretation boundary
 
-The original script reads `LR/*`, converts BGR OpenCV arrays to RGB tensor order, executes the model under `torch.no_grad()`, clamps values to `[0, 1]`, and writes a PNG result. The path is conceptually correct, but it currently hard-codes CUDA and a missing checkpoint.
+![Diagram distinguishing generated super-resolution output from recovered evidence](docs/assets/interpretation_boundary.svg)
 
-```mermaid
-flowchart TB
-    A[Validate weight exists] --> B[Choose CPU or CUDA device]
-    B --> C[Load RRDBNet state dict]
-    C --> D[For each input image]
-    D --> E[Normalize and reorder channels]
-    E --> F[Inference without gradients]
-    F --> G[Clamp, reorder, write]
+Keep the original image unchanged and store the model name, checkpoint hash,
+settings, timestamp and output path beside every transformed file. Enhancement
+does not alter image ownership, privacy requirements, consent obligations, or
+the evidentiary status of the original.
+
+## Run the verified inference path
+
+The supported runner is [`src/run_esrgan.py`](src/run_esrgan.py). It makes paths
+and device selection explicit, detects missing prerequisites before allocating
+the full network, automatically selects CPU when CUDA is unavailable, and never
+overwrites the input images.
+
+```powershell
+python -m pip install -r requirements.txt
+python -m pytest -q
+python -m src.run_esrgan --device auto
 ```
 
-## 6 · Architecture
-
-`RRDBNet` begins with a convolution, passes features through 23 Residual-in-Residual Dense Blocks, adds a trunk residual connection, then upsamples twice by a factor of two. Each RRDB contains three dense residual blocks; each dense block concatenates earlier feature maps before its later convolutions. Residual scaling (`0.2`) reduces the magnitude of each deep residual path.
-
-That architecture explains why the checkpoint is load-bearing: the network definition alone has random weights and cannot produce a meaningful enhancement.
-
-## 7 · Model-weight boundary
-
-The required file is absent:
+Inference requires an **authorised, compatible** ESRGAN checkpoint at:
 
 ```text
 models/RRDB_ESRGAN_x4.pth
 ```
 
-It must be obtained from an authorised upstream source, with its licence and model-card conditions reviewed, before inference is run. Large model files should remain outside Git or use a storage mechanism designed for them.
-
-## 8 · Original operational risks
-
-The original `test.py` assumes all of the following without a preflight check:
-
-1. CUDA is available.
-2. `models/RRDB_ESRGAN_x4.pth` exists and matches the architecture.
-3. An `LR/` directory exists and contains readable images.
-4. A writable `results/` directory exists.
-
-Those assumptions turn a missing asset into a low-level exception. They are documented here rather than hidden. The next code change should add argument-driven paths, automatic CPU/GPU selection, and an explicit preflight report before attempting inference.
-
-## 9 · Verification and state
-
-| State | Evidence |
-|---|---|
-| Architecture preserved | `RRDBNet_arch.py` and original utilities remain local |
-| Sample assets present | Six JPG/PNG assets remain local |
-| Inference unverified | Required pretrained checkpoint is absent |
-| Quantitative quality unverified | No controlled LR/HR benchmark pair exists |
-| Upstream evidence preserved | Original README renamed to `UPSTREAM_ESRGAN_REFERENCE.md` |
-
-No image-enhancement result is claimed from this revamped checkout.
-
-## 10 · Responsible use
-
-- Never treat generated image detail as recovered fact.
-- Do not enhance medical scans, surveillance, identity, legal, or forensic material for evidentiary interpretation.
-- Preserve originals, transformation settings, model version, and output provenance for every legitimate creative or research use.
-- Do not upload images containing private or protected content to a third-party model host without authority.
-
-**Current state:** documented, preserved, and blocked on an external model weight. **Open next step:** restore an authorised checkpoint, add a preflight CLI, then run output-size and pixel-range checks before presenting an example result.
-
-## A · Commands and layout
+The checkpoint is intentionally not committed to this repository. Review its
+licence and provenance before using it, and keep large weights outside ordinary
+Git history. Once it is available, run a specific folder safely:
 
 ```powershell
-# Install the PyTorch build appropriate to this machine from pytorch.org first
-pip install numpy opencv-python
-python test.py
+python -m src.run_esrgan `
+  --checkpoint models/RRDB_ESRGAN_x4.pth `
+  --input-dir data/samples `
+  --output-dir results `
+  --device cpu
 ```
 
+The runner writes `*_x4.png` files to the output folder. It performs no model
+training and does not claim a quality score.
+
+## What is verified locally
+
+The tests do not pretend to validate visual quality without a controlled
+low-resolution/high-resolution benchmark. They verify the engineering contract:
+
+1. a small RRDBNet instance transforms an RGB tensor from `H × W` to `4H × 4W`;
+2. CPU selection works without a CUDA runtime; and
+3. preflight reports both a missing checkpoint and a missing input directory
+   clearly, before an opaque low-level exception occurs.
+
+PSNR, SSIM and LPIPS require a known high-resolution reference. The supplied
+sample images are useful as local inputs, but they are not a paired benchmark,
+so this checkout makes no visual-quality or upstream-benchmark claim.
+
+## Project map
+
 ```text
-image_enhancer/
-├── UPSTREAM_ESRGAN_REFERENCE.md
-├── README.md
-├── RRDBNet_arch.py
-├── models/RRDB_ESRGAN_x4.pth  # required; not committed
-├── LR/                        # input images
-├── results/                   # generated outputs
-└── test.py
+12-image-super-resolution/
+├── data/samples/                  # local sample images
+├── src/
+│   ├── rrdbnet_arch.py            # RRDBNet architecture
+│   ├── run_esrgan.py              # supported preflight + inference runner
+│   ├── net_interp.py              # historical checkpoint interpolation utility
+│   └── transfer_rrdb_models.py    # historical checkpoint conversion utility
+├── tests/test_run_esrgan.py       # architecture and preflight checks
+├── notebooks/                     # original exploration notebook
+├── docs/
+│   ├── index.html                 # standalone visual walkthrough
+│   ├── assets/                    # architecture and safety diagrams
+│   └── reference/                 # upstream ESRGAN reference material
+└── requirements.txt
 ```
+
+## What a quality evaluation needs
+
+To report a credible super-resolution result, use a versioned test set with
+known high-resolution ground truth. Create low-resolution inputs using a
+documented degradation procedure, keep those pairs separate from training,
+compare against bicubic interpolation and another baseline, and report PSNR,
+SSIM, perceptual measures, failures and visual crops. For any real use case,
+judge whether generated detail is acceptable for that purpose before relying on
+it.
+
+Open the [standalone walkthrough](docs/index.html) for the same explanation in
+a presentation-ready format.

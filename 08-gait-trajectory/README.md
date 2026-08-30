@@ -1,22 +1,72 @@
-# Gait-Trajectory Sequence-Modeling Study
+# Gait Trajectory Prediction
 
-> **Project status — source data required.** This repository preserves three exploratory notebooks and a visual asset, but none of the CSV files they reference is available locally. No trained-model, metric, or clinical-capability claim is made here.
+**Predicting hip, knee and ankle joint angles from gait measurements, comparing a dense network against an LSTM.**
 
-## The first question is not “which neural network?”
+2023 · TensorFlow/Keras · Multi-output regression · Custom proportional loss
 
-Gait data can be clinically, personally, and contextually sensitive. Before choosing a DNN or LSTM, an experiment must establish what a row or sequence means, which sensor or motion-capture procedure produced it, what the target represents, whether participants consented to reuse, and how participants are kept separate between training and evaluation. Without those facts, a low loss is uninterpretable.
+![Archived gait-trajectory visual](docs/assets/gait_trajectory_plot.png)
 
-This is a research/prototyping archive. It is **not** a diagnostic, fall-risk, rehabilitation, identity, or treatment recommendation system.
+---
 
-## Evidence ledger
+## What this project does
+
+Human walking is cyclical and smooth. Given a set of gait measurements, the goal
+is to reconstruct the three lower-limb joint angles across the gait cycle.
+
+| | |
+|---|---|
+| Inputs | 3 measurement columns |
+| Outputs | 3 joint angles — hip, knee, ankle |
+| Task type | Multi-output **regression** (continuous values, not classes) |
+| Training | 500 epochs, batch size 1 |
+| Architectures | Dense network and LSTM, trained on the same budget |
+
+This is a regression problem rather than a classification one: the model
+predicts three continuous angles, and is judged on how closely the predicted
+trajectory follows the measured one.
+
+```mermaid
+flowchart LR
+    A["Gait measurements<br/>3 columns"] --> B["Network"]
+    B --> C["Hip angle"]
+    B --> D["Knee angle"]
+    B --> E["Ankle angle"]
+    C --> F["Compare against<br/>measured trajectory"]
+    D --> F
+    E --> F
+
+    style A fill:#e8eef6,stroke:#3a6ea5,color:#1f2933
+    style B fill:#eaf2ed,stroke:#2f6f4e,color:#1f2933
+    style F fill:#fdf1e7,stroke:#b4532a,color:#1f2933
+```
+
+Why the shape of the curve matters as much as the loss value: a prediction can
+have a low average error while still having the wrong shape across the cycle,
+which is why every notebook ends by plotting predicted against measured.
+
+---
+
+## Running it today
+
+The notebooks reference local CSV files — `Book14.csv`, `Book13.csv`,
+`s1i-5.csv`, `lstm1 ankle.csv` and others — that are not in this repository, so
+they cannot be re-run here. The code, the architectures, and the saved plots are
+preserved; see [`data/README.md`](data/README.md) for the expected schema.
+
+Because of that, **no accuracy figure is quoted anywhere in this README.**
+Reporting one would mean inventing it.
+
+---
+
+## What is in this repository
 
 | Asset | What it contains | What can be verified now |
 |---|---|---|
-| `DNN.ipynb` | Dense-network experiments, CSV transforms, plots | Code and missing file references inspected |
-| `lstm.ipynb` | Recurrent-sequence experimentation | Code and missing file references inspected |
-| `final.ipynb` | Consolidated exploratory visualizations and sequence attempts | Preserved; contains historical notebook outputs/errors |
-| `gtp.png` | Project visual asset | Preserved |
-| `main.py` | Unrelated sports-session scheduling utility | Preserved; not used by the gait notebooks |
+| `notebooks/02_dense_network.ipynb` | Dense-network experiments, CSV transforms, plots | Code and missing file references inspected |
+| `notebooks/03_lstm.ipynb` | Recurrent-sequence experimentation | Code and missing file references inspected |
+| `notebooks/01_gait_trajectory_final.ipynb` | Consolidated exploratory visualizations and sequence attempts | Preserved; contains historical notebook outputs/errors |
+| `docs/assets/gait_trajectory_plot.png` | Project visual asset | Preserved |
+| `src/train.py` | A scheduling utility unrelated to the gait notebooks | Preserved |
 | `LEGACY_README.md` | Original description | Preserved as historical context |
 
 The notebooks reference local CSV names including `Book14.csv`, `Book13.csv`, `Book.csv`, `s1i-5.csv`, and `lstm1 ankle.csv`. They are not in this checkout, so no execution or metric claim has been made during the revamp.
@@ -38,6 +88,45 @@ flowchart LR
 ```
 
 The comparison is meaningful only after a baseline and the split are fixed. A dense neural network can model fixed-length engineered features; an LSTM can model ordered samples and temporal dependence. Neither is automatically better—an LSTM is inappropriate if rows have no consistent time order or if windows mix participants.
+
+### The two architectures compared
+
+```mermaid
+flowchart TD
+    A["3 input measurements"] --> B["Dense network"]
+    A --> C["LSTM"]
+    B --> B1["Sees each sample<br/>independently"]
+    C --> C1["Reads the sequence in order,<br/>carries memory across steps"]
+    B1 --> D["3 joint angles<br/>hip · knee · ankle"]
+    C1 --> D
+
+    style B fill:#e8eef6,stroke:#3a6ea5,color:#1f2933
+    style C fill:#eaf2ed,stroke:#2f6f4e,color:#1f2933
+    style D fill:#fdf1e7,stroke:#b4532a,color:#1f2933
+```
+
+Gait is periodic — each point in the cycle follows from the one before it. That
+is the argument for a recurrent model, and the reason both were tried.
+
+### The proportional loss
+
+Rather than plain squared error, the notebooks divide the error by a per-sample
+normaliser, so a miss is judged relative to the size of the angle being
+predicted:
+
+```mermaid
+flowchart LR
+    A["y_true - y_pred"] --> B["take absolute value"]
+    B --> C["divide by Z<br/><i>per-sample normaliser</i>"]
+    C --> D["proportional error"]
+
+    style C fill:#fdf1e7,stroke:#b4532a,color:#1f2933
+    style D fill:#eaf2ed,stroke:#2f6f4e,color:#1f2933
+```
+
+A 2-degree miss on a large hip angle is then not penalised more heavily than a
+2-degree miss on a small ankle angle.
+
 
 ## What the archived notebooks attempt
 
@@ -103,7 +192,7 @@ jupyter notebook
 
 This establishes packages only. It does not authorize or replace the missing dataset, participant metadata, or evaluation protocol.
 
-## Professional conclusion
+## Summary
 
 The repository preserves useful exploratory work around dense and recurrent models. The next professional milestone is not more epochs: it is a documented data contract and participant-safe evaluation design. Until then, the project remains an unverified research archive rather than a working gait predictor.
 

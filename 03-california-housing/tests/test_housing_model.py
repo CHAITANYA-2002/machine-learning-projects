@@ -1,4 +1,7 @@
 import numpy as np
+import subprocess
+import sys
+from pathlib import Path
 from sklearn.datasets import make_regression
 
 from src.housing_model import build_pipeline, evaluate_predictions, split_data
@@ -31,3 +34,23 @@ def test_evaluate_predictions_reports_standard_regression_metrics():
     assert set(metrics) == {"mae", "rmse", "r2"}
     assert metrics["mae"] == 1.0
     assert metrics["rmse"] == 1.0
+
+
+def test_training_script_imports_from_the_project_root():
+    """The documented direct command must resolve project-local imports."""
+    project_root = Path(__file__).resolve().parents[1]
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import runpy; runpy.run_path('src/train.py', run_name='import_check')",
+        ],
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr

@@ -1,55 +1,133 @@
-# Background Remover — Segmentation Experiments
+# Background Removal as Foreground Segmentation
 
-**A preserved computer-vision experiment comparing pretrained instance segmentation with classical contour-based masking.**
+> A computer-vision study of three ways to identify foreground pixels and create a transparent or replaced-background image.
 
-`3 original notebooks · Detectron2 + classical CV paths · COCO/Kaggle paths absent · no local output-quality claim`
+![Segmentation paths](docs/assets/segmentation_paths.svg)
 
-> Removing a background is a segmentation problem: classify which pixels belong to a selected foreground object. A visually plausible cut-out is not proof that every boundary pixel is correct—hair, glass, shadows, occlusion, and multiple subjects make the problem inherently ambiguous.
+## What this project teaches
 
----
+“Remove the background” sounds like a simple image-editing command. Technically, it is a **segmentation** task: for every pixel, decide whether it belongs to the chosen foreground object or the background. The final composited image is only as good as that foreground mask.
 
-## 1 · Two methods answer different questions
+This project explores the problem from three angles:
 
-The project contains two approaches that should not be presented as interchangeable.
+| Approach | Core idea | Best use | Important limitation |
+|---|---|---|---|
+| Pretrained Detectron2 | Use a model already trained to recognise COCO object instances | Fast masks for supported everyday objects | It cannot reliably segment every object, occlusion, or fine boundary |
+| Classical computer vision | Infer foreground from contrast, edges, contours, and morphology | Explainable experimentation on controlled images | Background clutter, shadows, and similar colours break the assumptions |
+| U-Net training exploration | Learn a pixel mask from labelled COCO images | Task-specific segmentation research | Requires a large labelled dataset, compute, and genuine evaluation |
+
+The purpose is not to claim a universally accurate background-removal product. It is to make the mask-generation choices, assumptions, and failure modes visible.
+
+## The core workflow
 
 ```mermaid
 flowchart LR
-    A[Input image] --> B{Approach}
-    B --> C[Detectron2 pretrained instance segmentation]
-    B --> D[Classical blur / edges / contours]
-    C --> E[Object mask selected from learned classes]
-    D --> F[Heuristic foreground mask]
-    E --> G[Composite or transparent output]
+    A[Input image] --> B[Decode and resize]
+    B --> C{Choose mask generator}
+    C --> D[Pretrained instance segmentation]
+    C --> E[Classical edges and contours]
+    C --> F[Trained U-Net]
+    D --> G[Foreground mask]
+    E --> G
     F --> G
+    G --> H[Optional cleanup]
+    H --> I[Alpha transparency or background composite]
 ```
 
-| Approach | What it learns/assumes | Strength | Main failure mode |
-|---|---|---|---|
-| Detectron2 | COCO-pretrained object categories and masks | General object boundaries for supported classes | Unsupported/occluded objects, class confusion, download/runtime dependency |
-| Classical CV | Pixel contrast, blur, contours, morphology | Useful educational baseline, no semantic model | Similar foreground/background colours, shadows, clutter |
+Each step has a clear purpose:
 
-The deep path is not automatically “better”; it has a stronger learned prior. The classical path is not an alternative semantic segmentation system; it is an explainable heuristic experiment.
+1. **Decode and resize** makes image dimensions and colour representation explicit.
+2. **Mask generation** decides which pixels are foreground.
+3. **Cleanup** can remove isolated noise or close small holes, but may also damage hair, thin objects, or gaps.
+4. **Compositing** uses the mask to retain foreground pixels and replace or hide background pixels.
 
-## 2 · System at a glance
+## Method 1: pretrained instance segmentation
 
-| Notebook | Role | Runtime boundary |
-|---|---|---|
-| `Background_Removal.ipynb` | Main interactive Detectron2 and classical-CV walkthrough | Designed for Google Colab GPU and uploaded images |
-| `Flask_BG_Remove.ipynb` | Notebook-hosted Flask demonstration | Colab, GPU, temporary ngrok-style endpoint |
-| `coco-UNET-.ipynb` | COCO/U-Net training exploration | Kaggle COCO 2017 paths and GPU training |
-| `templates/index.html` | Original Flask template | Preserved support asset |
+Detectron2’s Mask R-CNN family is trained on COCO-style object categories. Given an image, it returns object instances, class labels, confidence scores, and a predicted mask for each instance.
+
+```text
+image → model backbone → region proposals → object class + confidence + instance mask → selected mask → composite
+```
+
+### Why it is useful
+
+The model has learned shape and context from a large external dataset. It can often produce a plausible mask even when edges are weak or the background is visually complex.
+
+### What the notebook actually does
+
+The notebook configures a Detectron2 model-zoo checkpoint, applies a confidence threshold, extracts predicted instance masks, merges selected masks, then uses OpenCV operations and either a colour or uploaded replacement background to create the output.
+
+### Failure modes to expect
+
+- The foreground is not a COCO-supported category.
+- Two nearby objects are merged or the wrong instance is selected.
+- Hair, glass, shadows, reflections, and occlusion have ambiguous boundaries.
+- The first checkpoint download and GPU/CUDA compatibility are environment-dependent.
+
+## Method 2: classical contour-based masking
+
+The classical path deliberately avoids semantic learning. It uses image structure instead:
 
 ```mermaid
-flowchart TB
-    A[User-provided image] --> B[Decode + colour conversion]
-    B --> C[Segmentation or contour mask]
-    C --> D[Optional morphology / mask cleanup]
-    D --> E[Alpha composite onto output/background]
+flowchart LR
+    A[Colour image] --> B[Grayscale conversion]
+    B --> C[Canny edge detection]
+    C --> D[Dilate / erode edges]
+    D --> E[Find and rank contours]
+    E --> F[Draw contour mask]
+    F --> G[Composite result]
 ```
 
-## 3 · Data and runtime contract
+This method is valuable because every parameter is inspectable—blur size, Canny thresholds, contour-area bounds, dilation, erosion, and output size. It is useful for teaching how a mask can emerge from pixel geometry.
 
-The COCO U-Net notebook references these Kaggle-only paths, which do not exist in the local checkout:
+It is not semantic segmentation. It cannot know what the “subject” is; it only follows contrast and connected boundaries. A dark object on a dark background, textured scenery, shadows, and weak edges are normal ways for it to fail.
+
+## Method 3: U-Net and labelled-mask training
+
+The COCO/U-Net notebook explores a fully supervised path. It converts annotated images into image/mask pairs, builds an encoder–decoder U-Net with skip connections, and trains a pixel classifier.
+
+The saved notebook history records a 20-epoch training run, but it is not treated as a final quality claim here: the local COCO files and an independently held-out labelled evaluation set are absent. Training accuracy alone is not enough to demonstrate boundary quality or generalisation.
+
+## How a mask becomes an output image
+
+Let `M` be a binary mask, `I` the original image, and `B` a replacement background. The conceptual composite is:
+
+```text
+output = M × I + (1 − M) × B
+```
+
+If the desired output is transparent PNG rather than a replacement background, `M` becomes the alpha channel. This preserves the original foreground pixel values while making background pixels transparent.
+
+Mask cleanup changes `M` before compositing. Morphological opening can remove isolated noise; closing can fill small holes. Both are trade-offs: aggressive cleanup can erase thin foreground details.
+
+## How quality should be evaluated
+
+![Mask-quality boundary](docs/assets/mask_quality.svg)
+
+A visually convincing cut-out is an illustration, not a measurement. To claim quantitative quality, the project needs a held-out set of images with human-labelled masks and a clearly defined foreground policy.
+
+| Metric | What it measures | Why it helps |
+|---|---|---|
+| IoU / Jaccard | Overlap of predicted and true foreground regions | Standard whole-mask agreement |
+| Dice / F1 | Similarity with more emphasis on smaller regions | Helpful when foreground occupies little image area |
+| Boundary F-score | Alignment around the object edge | Reveals hair/thin-object boundary problems |
+| Latency and memory | Runtime cost per image | Needed before describing an interactive workflow as practical |
+
+The authorised COCO paths and labelled local evaluation set are not in this repository, so this README deliberately makes no IoU, Dice, latency, or benchmark claim.
+
+## Running the experiments
+
+The interactive notebooks were originally designed for Colab/Kaggle-style environments.
+
+```powershell
+cd 05-background-remover
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+jupyter lab
+```
+
+For the pretrained route, install Detectron2 according to its official compatibility instructions for your chosen PyTorch and CUDA build. The main notebook expects user-provided foreground/background images. The U-Net notebook additionally expects an authorised COCO 2017 layout:
 
 ```text
 /kaggle/input/coco-2017-dataset/coco2017/
@@ -59,60 +137,15 @@ The COCO U-Net notebook references these Kaggle-only paths, which do not exist i
 └── annotations/
 ```
 
-The main notebook instead expects a user to upload a foreground image and, where relevant, a replacement background. The Flask notebook is a temporary demonstration, not a deployable service: a Colab runtime and tunnel URL end when the session ends.
+## Responsible image handling
 
-## 4 · Mask-quality boundary
+- Preserve originals and disclose any image alteration.
+- Obtain the rights and consent needed before uploading images to a notebook host or external model service.
+- Do not use an automatically generated mask as final evidence in medical, legal, surveillance, identity, or safety-critical contexts.
+- Treat unintended foreground removal and background retention as expected operational risks.
 
-No local labelled-mask dataset or benchmark output is included. Therefore this project cannot currently report IoU, Dice, boundary F-score, class-specific recall, latency, or an accuracy figure. Visual examples are useful demonstrations, not evaluation evidence.
+## Takeaway
 
-```mermaid
-flowchart LR
-    A[Predicted mask] --> B{Need a quality claim?}
-    B -->|Yes| C[Ground-truth masks + held-out images]
-    C --> D[IoU / Dice / boundary metrics]
-    B -->|No| E[Present as illustrative output only]
-```
+This project demonstrates that background removal is a question of **how the foreground mask is obtained**. Pretrained segmentation supplies learned object priors, classical CV supplies transparent pixel heuristics, and U-Net training supplies a path toward task-specific learning. Good engineering makes the mask-generation choice, evaluation evidence, and limits explicit.
 
-## 5 · Original operational risks
-
-The notebooks make several environment-specific assumptions: a compatible GPU, dynamic package installation, a forced runtime restart, a temporary web tunnel, Colab upload widgets, and Kaggle-mounted COCO paths. These are not defects in a classroom exploration, but they prevent a visitor from reproducing the project on a local machine without a data/runtime contract.
-
-The original material is preserved. The recovery path is to extract a local Python service/CLI with explicit input/output paths, pinned dependencies, model-download provenance, and an optional CPU fallback before calling it deployable.
-
-## 6 · Responsible use
-
-- A mask can remove or alter context; preserve originals and disclose transformations.
-- Do not use automatic masks as final evidence in medical, legal, surveillance, identity, or safety-critical workflows.
-- Confirm rights and consent before uploading images to a notebook host or third-party model service.
-- Treat missed pixels and accidental foreground/background swaps as expected failure modes, not edge cases.
-
-## 7 · Verification and state
-
-| State | Evidence |
-|---|---|
-| Original notebooks preserved | Three notebooks and Flask template remain local |
-| Local COCO training unavailable | Kaggle input hierarchy absent |
-| Local mask-quality metrics unavailable | No ground-truth evaluation set included |
-| Flask deployment not claimed | Notebook hosts only a temporary Colab/tunnel demonstration |
-| Open next step | Localise paths, pin environment, restore authorised test masks, measure mask quality |
-
-**Current state:** documented preserved experiment; data/runtime-dependent execution blocked. No performance or deployment claim is made.
-
-## A · Recommended recovery layout
-
-```text
-background_remover/
-├── data/
-│   ├── input/
-│   └── evaluation/             # images and ground-truth masks
-├── models/                     # declared model weights and provenance
-├── outputs/                    # generated; not source images
-├── Background_Removal.ipynb    # preserved original
-└── README.md
-```
-
-Run only after reproducing the original environment and reviewing dependency compatibility:
-
-```powershell
-jupyter lab
-```
+The visual master guide is available at [docs/index.html](docs/index.html).

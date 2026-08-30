@@ -1,94 +1,188 @@
-# Blue Book for Bulldozers — Sale Price Regression
+# Blue Book for Bulldozers: Time-Aware Auction Price Regression
 
-**A preserved historical Kaggle regression notebook for predicting bulldozer auction sale prices from machine characteristics and prior sale records.**
+> Predicting historical bulldozer auction sale prices from machine characteristics and sale records—using a validation design that respects time.
 
-`116-cell original notebook · time-ordered auction task · RMSLE metric · original Kaggle data absent`
+![Time-aware workflow](docs/assets/time_aware_workflow.svg)
 
-> The folder is historically named `Bluetooth Sale Predictor`, but its code and README describe the **Blue Book for Bulldozers** competition. This README uses the correct project identity while retaining the folder and original notebook to avoid breaking repository history.
+## Why this project matters
 
----
+Pricing a machine at auction is not a normal “one row in, one price out” regression problem. Markets change over time. A model trained using information from a later market period can appear excellent on paper while being useless for a genuine future prediction.
 
-## 1 · The problem is time, not just price
+This project builds a reliable baseline for the **Blue Book for Bulldozers** historical Kaggle task. It explains the full reasoning chain: what the data represents, why the split is chronological, how missing and categorical information is handled, why RMSLE is used, and how to interpret a result without overstating it.
 
-The task is to estimate a bulldozer's auction sale price from characteristics and historical records. The Kaggle competition's key constraint is temporal: training data runs through 2011, validation is early 2012, and test is later in 2012. A random split would let future market conditions appear in training and turn a forecasting-style task into a misleading tabular regression score.
+The result is a project someone can understand from this page before opening a single code file.
+
+## The question being answered
+
+Given a bulldozer’s known characteristics at auction—such as its model, age, configuration, location-like fields, and sale date—estimate its **auction sale price**.
+
+The output is not a retail price, guaranteed resale value, insurance appraisal, or a statement of physical condition. It is a model estimate for a historical auction context.
+
+| What the model can support | What it cannot support |
+|---|---|
+| A reproducible baseline on historical competition data | A current-market appraisal for an individual machine |
+| A time-aware comparison of regression approaches | A guarantee of auction outcome |
+| Analysis of model error and feature reliance | A causal explanation of what “sets” price |
+
+## The central design decision: predict the future from the past
+
+The competition is inherently chronological. The training period contains earlier auction records; validation occurs on later records; the final test period comes later still. The project never uses a random split as its primary evaluation because that would mix market periods.
 
 ```mermaid
 flowchart LR
-    A[Historical auction records through 2011] --> B[Train model]
-    B --> C[Validate on Jan–Apr 2012]
-    C --> D[Predict May–Nov 2012]
-    D --> E[RMSLE evaluation]
+    A[Historical auction records] --> B{Choose a date cutoff}
+    B -->|Earlier records| C[Fit preprocessing and model]
+    B -->|Later records| D[Keep unseen for validation]
+    C --> E[Predict later records]
+    D --> E
+    E --> F[Measure RMSLE and inspect errors]
 ```
 
-## 2 · What is preserved
+Why this matters:
 
-| Artefact | Role | State |
+1. A machine sold in a later period may reflect a different economic climate, demand pattern, or auction behaviour.
+2. Training transformations must learn from earlier records only.
+3. Later-period error is a more honest simulation of making a future estimate.
+
+## The data, explained
+
+The authorised competition dataset contains historical auction records with `SalePrice` as the target and `saledate` as the time anchor. The remaining columns combine numerical machine data, identifiers, product descriptions, configuration fields, and categorical attributes.
+
+### What makes this data challenging?
+
+| Characteristic | Why it matters | How this project responds |
 |---|---|---|
-| `sale_price_bluetooth.ipynb` | Original 116-cell end-to-end competition notebook | Preserved unchanged |
-| Original project description | Dataset, time windows, data dictionary link, metric definition | Rewritten here with provenance boundary |
-| Folder name | Historical repository path | Kept for compatibility; identity clarified |
+| Dates | Time is part of the prediction problem | Creates calendar features and splits chronologically |
+| Missing values | Machine hours and configuration fields are often incomplete | Learns median/mode imputations from training rows only |
+| Many categories | Models, states, equipment options, and descriptions vary widely | Uses a train-fitted unknown-aware encoder |
+| New categories later in time | A later/test machine can have a category not seen earlier | Maps unknown categories to a safe sentinel rather than failing |
+| Skewed sale prices | A raw dollar error does not tell the whole story | Evaluates with RMSLE |
 
-## 3 · Data contract
-
-The notebook expects these Kaggle Blue Book for Bulldozers files:
+The source CSVs are deliberately not redistributed here. To run the data-dependent notebooks, place your authorised copies here:
 
 ```text
 data/bluebook-for-bulldozers/
 ├── TrainAndValid.csv
-├── train_tmp.csv                 # generated during preprocessing in the notebook
 └── Test.csv
 ```
 
-They are not included in this repository. The dataset's Kaggle licence, competition terms, and data dictionary must be reviewed before restoration. The project will remain intentionally unexecuted until the original authorised files are present.
+## From raw sale date to useful signals
 
-| Partition | Period | Purpose |
+A date string is not directly useful to a typical scikit-learn regression model. Instead, the project derives interpretable calendar attributes:
+
+```text
+saledate → saleYear, saleMonth, saleDay, saleDayOfWeek, saleDayOfYear
+```
+
+These features give the model a way to learn recurring annual, monthly, and weekly patterns without treating a raw datetime as an arbitrary number. The date helper works on a copy of the input frame, so analysis code cannot accidentally overwrite the original data.
+
+## The preprocessing contract
+
+![Training-fitted preprocessing contract](docs/assets/preprocessing_contract.svg)
+
+The most important engineering idea in this project is that preprocessing is part of the model—not an ad-hoc setup step.
+
+The pipeline is fitted once on the training period. That fitted pipeline is then reused unchanged for validation and final-test records.
+
+| Data type | Training-time action | Later validation/test action |
 |---|---|---|
-| Train | Through end of 2011 | Fit feature processing and model |
-| Validation | 2012-01-01 to 2012-04-30 | Iterative model comparison |
-| Test | 2012-05-01 to 2012-11-30 | Final competition prediction period |
+| Numeric field with gaps | Learn its training median and add a missingness flag | Fill using that same training median |
+| Known categorical value | Learn its training category mapping | Apply the same mapping |
+| New categorical value | Not applicable—it was not seen yet | Encode as `-1`; predict safely without changing columns |
 
-## 4 · Evaluation: RMSLE
+This avoids two common failure modes:
 
-The competition evaluates root mean squared logarithmic error:
+- fitting imputation or category mappings with future rows, which leaks information; and
+- manually repairing mismatched test columns after a model has already been trained.
+
+## The model: random forest as a dependable baseline
+
+The baseline uses a `RandomForestRegressor`. A forest combines many decision trees, with each tree learning different partitions of the historical feature space. Averaging their predictions generally reduces the instability of a single tree and handles nonlinear tabular patterns well.
+
+The model is deliberately a baseline rather than a claim of global optimality. Its role is to establish a solid, inspectable benchmark before trying gradient boosting, CatBoost, XGBoost, or more specialised approaches.
+
+```mermaid
+flowchart LR
+    A[Time-derived features] --> D[Train-fitted preprocessing]
+    B[Numeric machine fields] --> D
+    C[Categorical machine fields] --> D
+    D --> E[Random forest]
+    E --> F[Non-negative auction-price prediction]
+```
+
+## Why RMSLE is the right evaluation metric
+
+![RMSLE intuition](docs/assets/rmsle_intuition.svg)
+
+The competition evaluates **root mean squared logarithmic error**:
 
 ```text
 RMSLE = sqrt(mean((log1p(actual_price) - log1p(predicted_price))²))
 ```
 
-Log error measures multiplicative rather than raw-currency misses: an error from $10,000 to $20,000 is treated comparably to $100,000 to $200,000. It also requires non-negative predictions. A project claiming MAE or R² alone would be measuring a different task from the one the competition defines.
+Unlike a simple dollar-distance metric, RMSLE is sensitive to proportional error. Predicting $20,000 for a $10,000 sale and predicting $200,000 for a $100,000 sale are both two-times-too-high errors, even though their raw dollar differences are very different.
 
-## 5 · Expected workflow
+The project checks two conditions before calculating the metric:
+
+1. actual and predicted arrays must have the same shape; and
+2. both must be non-negative.
+
+Those checks turn a subtle invalid-metric mistake into a clear, early error.
+
+## The complete modelling journey
 
 ```mermaid
 flowchart TB
-    A[Read authorised CSVs] --> B[Parse sale date]
-    B --> C[Time-derived + categorical features]
-    C --> D[Fit preprocessing on historical rows]
-    D --> E[Validate only on later dates]
-    E --> F[Measure RMSLE]
-    F --> G[Generate Kaggle-format test predictions]
+    A[Load authorised CSV] --> B[Parse and sort saledate]
+    B --> C[Choose chronological cutoff]
+    C --> D[Earlier rows: train]
+    C --> E[Later rows: validation]
+    D --> F[Create date features]
+    E --> G[Create same date features]
+    F --> H[Fit preprocessing + forest]
+    H --> I[Predict validation]
+    G --> I
+    I --> J[Clip negative predictions to 0]
+    J --> K[Calculate RMSLE]
+    K --> L[Inspect residuals before final test submission]
 ```
 
-The original notebook contains useful competition work, but it must be re-executed and audited after the source data is recovered before any stored output or score can be presented as verified.
+Every stage exists for a reason. Sorting makes the chronology visible. The cutoff produces a future-like holdout. The pipeline prevents train/test feature drift. RMSLE matches the task. Residual analysis prevents a single score from becoming the whole story.
 
-## 6 · Known documentation boundary
-
-No measured metric is reported in this README. The notebook's saved outputs are not a substitute for an executed, reproducible data run, especially when the input data is absent from the repository.
-
-## 7 · Limits and responsible use
-
-- Auction sale prices are not retail values, appraisals, or guarantees.
-- The historical 2011–2012 competition setting may not transfer to a current equipment market.
-- Price data can encode geography, seller, equipment condition, and market-cycle effects not represented by the available fields.
-- A production valuation tool would require current licensed data, temporal backtesting, error slices by machine category and geography, audit logs, and human review.
-
-**Current state:** original notebook preserved; data-dependent execution blocked. **Open next step:** restore the authorised Kaggle data, run the notebook end-to-end, then separate EDA, time-aware model development, and a final verified workflow.
-
-## A · Recovery commands and layout
+## How to run it
 
 ```powershell
-pip install pandas numpy matplotlib scikit-learn jupyter
+cd 04-bulldozer-price-regression
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python -m pytest
 jupyter lab
 ```
 
-Open `sale_price_bluetooth.ipynb` only after placing the authorised source CSVs under the required `data/bluebook-for-bulldozers/` directory.
+Start with `notebooks/01_exploratory_data_analysis.ipynb` to understand the dataset, then open `notebooks/02_time_aware_model_development.ipynb` for the complete training and validation sequence. Every section contains contextual Markdown and comments explaining what it does and why.
+
+## Verification built into the project
+
+The project has focused automated checks for the parts most likely to become silently wrong:
+
+| Verification | What it protects |
+|---|---|
+| Date feature test | Calendar features are correct and raw input remains unchanged |
+| Temporal split test | Future rows are never placed in training |
+| RMSLE test | Formula is correct and invalid negative values are rejected |
+| Category-alignment test | Missing and unseen categorical values do not break prediction |
+
+```text
+4 passed
+```
+
+## Reading a result responsibly
+
+When you run the project with authorised data, report the RMSLE alongside the date cutoff, train/validation windows, row counts, model configuration, and error slices. A single overall score can hide poor performance for a particular product group, age band, geography, or price range.
+
+Before using any model in a real operational setting, add current licensed data, repeated temporal backtests, monitoring for market drift, error analysis by relevant machine segment, audit logs, and qualified human review.
+
+## Further reading
+
+For a presentation-style version of this guide, open [docs/index.html](docs/index.html). The original competition notebook remains available as project history, but the two companion notebooks and this README are the recommended way to understand and run the project.

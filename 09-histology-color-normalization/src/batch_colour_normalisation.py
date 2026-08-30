@@ -7,7 +7,8 @@ Original file is located at
     https://colab.research.google.com/drive/1pOV60rNqyx-rVAOMf6oTO3DxuDuZfaMV
 """
 
-pip install color_transfer
+# Historical notebook command (run this separately in a configured environment):
+# python -m pip install color_transfer
 
 import cv2
 import glob

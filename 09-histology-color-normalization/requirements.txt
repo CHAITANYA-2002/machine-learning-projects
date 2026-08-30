@@ -3,4 +3,4 @@ opencv-python>=4.8
 pillow>=10.0
 matplotlib>=3.7
 jupyter>=1.0
-# Historical notebooks also install the external `color_transfer` package.
+pytest

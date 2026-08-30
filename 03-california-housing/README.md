@@ -1,207 +1,237 @@
-# California House Price Predictor
+# California Housing Regression Baseline
 
-**A reproducible baseline for estimating 1990 California district median house values from eight census-derived features.**
+> A reproducible, leakage-safe benchmark for estimating **1990 California census-district median house values** from eight numeric features. It is not a current-market forecast, a property appraisal, or a production pricing system.
 
-`20,640 districts · 8 features · 16,512 training rows · 4,128 untouched test rows · 3 regression tests`
+![Evaluation pipeline](docs/assets/pipeline_overview.png)
 
-> This README is the technical account of the project. It records the data boundary, model decisions, measured result, what the original implementation got wrong, and what a reader must not conclude from the score.
+## Executive summary
 
----
+This repository turns a fragile original house-price script into a small, verifiable machine-learning project. It fetches scikit-learn's California Housing dataset at runtime, reserves an untouched 20% holdout, fits a 300-tree random forest inside a preprocessing pipeline, and reports complementary holdout metrics.
 
-## Contents
+The preserved executed baseline reported **MAE 0.326**, **RMSE 0.504**, and **R² 0.806**. Because the target is in $100,000s, the MAE translates to roughly **$32,600** per district. That is evidence from one historical random-split experiment—not a promise for a current property, geography, or price band.
 
-| | | |
-|---|---|---|
-| [1 · The problem is not a valuation](#1--the-problem-is-not-a-valuation) | [5 · The model](#5--the-model) | [9 · Verification](#9--verification) |
-| [2 · System at a glance](#2--system-at-a-glance) | [6 · Results](#6--results) | [10 · Limitations](#10--limitations) |
-| [3 · The data contract](#3--the-data-contract) | [7 · What the model uses](#7--what-the-model-uses) | [A · Commands and layout](#a--commands-and-layout) |
-| [4 · The leakage boundary](#4--the-leakage-boundary) | [8 · The original failure](#8--the-original-failure) | |
+| Evidence | Value | Interpretation boundary |
+|---|---:|---|
+| Source rows | 20,640 | Census-district rows, not individual homes |
+| Features | 8 | Numeric area-level attributes and coordinates |
+| Target period | 1990 | Not a live housing market |
+| Holdout | 4,128 rows | Random split; nearby areas can cross partitions |
+| MAE | 0.326 | ≈ $32,600 average absolute district-level miss |
+| RMSE | 0.504 | ≈ $50,400; gives larger errors extra weight |
+| R² | 0.806 | Variation captured on this specific holdout |
+| Test suite | 4 passing tests | Split, predictions, metrics, direct-script imports |
 
----
-
-## 1 · The problem is not a valuation
-
-The task is to predict the target supplied by scikit-learn's California Housing dataset: a district-level **median house value in units of $100,000**, derived from the 1990 U.S. Census. It is not a listing-price predictor, an appraisal, or a current-market forecast.
-
-That distinction changes the claim this project can make. A model can explain variation in a historical, capped census target and still be unsuitable for estimating the value of a specific property today. The target itself is capped at **5.00001** ($500,001), so the dataset deliberately loses variation at the expensive end of the market.
-
-| | |
-|---|---:|
-| districts | **20,640** |
-| source period | **1990 census** |
-| predictor columns | **8** |
-| missing feature values | **0** |
-| target median | **1.797** ($179,700) |
-| target maximum | **5.00001** ($500,001; cap) |
-
-## 2 · System at a glance
-
-The project has one deliberately small runnable path. The model script fetches the maintained public dataset, reserves a holdout set before fitting any transformation, trains a fixed random-forest baseline, and reports prediction error and feature reliance.
-
-```mermaid
-flowchart LR
-    A[scikit-learn California Housing] --> B[Fixed 80/20 holdout split]
-    B --> C[Training-only median imputer]
-    C --> D[Training-only standard scaler]
-    D --> E[300-tree random forest]
-    E --> F[Untouched test predictions]
-    F --> G[MAE · RMSE · R²]
-    E --> H[Feature-importance audit]
-```
-
-| File | Responsibility | Verification |
-|---|---|---|
-| `main.py` | Fetches data, trains, prints measured holdout metrics | Executed against the source data |
-| `housing_model.py` | Split, model pipeline, metrics, feature-importance helpers | Unit tested |
-| `final_california_house_price_modeling.ipynb` | EDA, training, residual and importance visuals | Executed, no saved errors |
-| `tests/test_housing_model.py` | Reproducible splitting, finite predictions, metric arithmetic | 3 passing tests |
-| `docs/index.html` | Standalone walkthrough | Mirrors this evidence |
-
-The stage order is load → split → fit preprocessing/model → predict → measure. It is not cosmetic: fitting a scaler or imputer before the split would let information from the test districts influence training.
-
-## 3 · The data contract
-
-`fetch_california_housing(as_frame=True)` fetches and caches the dataset. No copy is committed to this repository, which avoids presenting a stale or ambiguously licensed extract as project-owned data.
-
-| Feature | Meaning | Observed range | Caveat |
-|---|---|---:|---|
-| `MedInc` | Median income, tens of thousands of dollars | 0.50–15.00 | Historical and area-level |
-| `HouseAge` | Median house age | 1–52 years | Top-coded at 52 |
-| `AveRooms` / `AveBedrms` | Mean rooms/bedrooms per household | 0.85–141.91 / 0.33–34.07 | Extreme values exist |
-| `Population` | Block-group population | 3–35,682 | Strongly skewed |
-| `AveOccup` | Mean household occupancy | 0.69–1,243.33 | Extreme outliers exist |
-| `Latitude` / `Longitude` | District location | 32.54–41.95 / −124.35–−114.31 | Coordinates are not a property address |
-
-The source contains no missing values in this execution. Median imputation remains in the pipeline because it makes the workflow robust if the input contract later changes; the imputer is fitted on training rows only.
-
-## 4 · The leakage boundary
-
-The holdout is created first with `random_state=42`. Only the 16,512 training rows fit the imputer, scaler, and forest. The 4,128 test rows are unseen until `predict()`.
-
-```mermaid
-flowchart TB
-    A[20,640 source rows] --> B{Fixed split}
-    B --> C[16,512 training rows]
-    B --> D[4,128 test rows]
-    C --> E[fit imputer + scaler + forest]
-    D --> F[transform using training statistics only]
-    E --> G[predict test rows]
-    F --> G
-    G --> H[report metrics once]
-```
-
-This is a sound **tabular baseline** split, not a proof of geographic generalisation. Nearby districts may be distributed across both partitions; a stronger next study would use spatially blocked validation to ask whether the model transfers to an unseen region.
-
-## 5 · The model
-
-A random forest with 300 trees and `min_samples_leaf=2` is used as the first credible model. It can express nonlinear relationships—income behaving differently by location, for example—without a deep-learning stack for a dataset of only 20,640 rows.
-
-| Choice | Decision | Why |
-|---|---|---|
-| Model | `RandomForestRegressor` | Nonlinear baseline, stable with mixed scales |
-| Trees | 300 | Reduces variance without making the example slow to run |
-| Minimum leaf | 2 | Avoids leaves containing single training districts |
-| Imputation | Median | Robust default if future inputs include gaps |
-| Scaling | StandardScaler | Reproducible common preprocessing; tree splits do not require it |
-| Seed | 42 | Same split and forest across runs |
-
-The scaler is intentionally retained even though trees do not need it. It keeps the preprocessing interface ready for linear or distance-based comparisons. It is not the source of the forest's performance.
-
-## 6 · Results
-
-The command-line workflow was run against the fetched data with the exact fixed configuration above.
-
-| Metric | Measured value | What it says | What it does **not** say |
-|---|---:|---|---|
-| MAE | **0.326** | Average miss is about **$32,600** | Every district is equally well estimated |
-| RMSE | **0.504** | Large misses raise the error to about **$50,400** | Error distribution is symmetric |
-| R² | **0.806** | About 80.6% of holdout target variation is captured | 80.6% of a property's value is known |
-
-```text
-California House Price Predictor
-Training rows: 16,512 | Test rows: 4,128
-MAE:  0.326 ($100,000s)
-RMSE: 0.504 ($100,000s)
-R2:   0.806
-```
-
-The final notebook plots predicted-versus-actual values and residuals. The cap in the target means errors close to $500,000 deserve special scrutiny: the dataset cannot distinguish the full range of high-value districts.
-
-## 7 · What the model uses
-
-The fitted forest's impurity-based ranking is:
-
-| Rank | Feature | Importance |
-|---:|---|---:|
-| 1 | `MedInc` | **0.535** |
-| 2 | `AveOccup` | **0.138** |
-| 3 | `Latitude` | **0.088** |
-| 4 | `Longitude` | **0.088** |
-| 5 | `HouseAge` | **0.053** |
-
-This is a description of the fitted forest, not a causal claim. Income and location encode many unobserved variables; changing `MedInc` in a district does not mechanically change a house price. Impurity-based importances can also overstate variables with many possible split points. Permutation importance and geographic error slices are the next defensible checks.
-
-## 8 · The original failure
-
-The original `main.py` could not run. Its `train_test_split` call passed the dataset object as the target; the Keras architecture omitted commas and used a non-existent `input_state` argument; compilation used misspelled `mertics` and an outdated optimizer parameter; and predictions were requested from the training history object rather than the model.
-
-The rewrite did not hide those failures behind a new README. It replaced the broken single script with small testable functions and pins three conditions:
-
-1. the split is repeatable and retains all rows;
-2. the pipeline returns one finite prediction per holdout row;
-3. MAE, RMSE, and R² calculations have known behavior.
-
-## 9 · Verification
-
-```text
-3 passed in 2.52s
-```
-
-| Check | Guard |
-|---|---|
-| Repeated split has identical rows | A seed or split refactor cannot silently destabilise reported results |
-| Prediction shape and finiteness | The pipeline produces a valid result for every test row |
-| Metric arithmetic | Reported errors use the intended formulas |
-| Full command run | Data fetch, training, and reporting work together |
-| Final notebook | 0 saved execution errors |
-
-## 10 · Limitations
-
-Read these before quoting the R².
-
-- **Historical target:** the data represents 1990 census districts, not live housing markets.
-- **Target cap:** values above roughly $500,000 are censored, weakening high-end interpretation.
-- **Spatial leakage risk:** the random holdout can place neighbouring districts on both sides of the split.
-- **Area-level data:** a district mean cannot appraise an individual property.
-- **Absent drivers:** property condition, school quality, rates, transaction timing, zoning, and local supply are not included.
-- **No fairness or error-slice audit:** error by geography or population group has not been evaluated.
-- **Not deployment-ready:** a real valuation system needs current licensed data, spatial/temporal validation, calibration, drift monitoring, and domain governance.
-
-## A · Commands and layout
+## Start here
 
 ```powershell
+cd 03-california-housing
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
-python main.py
-python -m pytest tests -q
+
+# Fetches/caches the public source on first run, trains, and prints metrics.
+python src/train.py
+
+# Regression guards for the project helpers and direct command import path.
+python -m pytest
 ```
 
-Execute the final notebook:
+The first model run needs internet access unless scikit-learn already has the dataset in its cache. No raw extract is committed; see [data/README.md](data/README.md) for the data boundary.
 
-```powershell
-python -m jupyter nbconvert --to notebook --execute final_california_house_price_modeling.ipynb --output final_california_house_price_modeling.ipynb
-```
+## What problem is actually being solved?
+
+`fetch_california_housing(as_frame=True)` provides a historical target named `MedHouseVal`: the median house value of a California census district, in $100,000s. It is derived from 1990 census data and has a maximum of **5.00001** ($500,001). The cap matters: the label does not distinguish the full range of high-value districts, so no model trained on it can recover that missing variation.
+
+This project may support a portfolio discussion about safe tabular-regression workflow. It must not be described as:
+
+- an estimate for a particular home;
+- a current price prediction;
+- proof that a feature causes house values; or
+- a geographically robust model for new regions.
+
+![Interpretation boundary](docs/assets/interpretation_boundary.png)
+
+## Repository map
 
 ```text
-CaliforniaHousePricePredictor/
-├── main.py
-├── housing_model.py
-├── final_california_house_price_modeling.ipynb
-├── tests/
-├── docs/index.html
-└── requirements.txt
+03-california-housing/
+├── notebooks/
+│   ├── 01_house_price_modeling.ipynb          # preserved combined baseline
+│   ├── 01_exploratory_data_analysis.ipynb    # guided EDA companion
+│   └── 02_model_development.ipynb            # guided modelling companion
+├── src/
+│   ├── housing_model.py                       # split, pipeline, metrics, importance helpers
+│   └── train.py                               # end-to-end command-line entry point
+├── tests/test_housing_model.py                # four focused regression checks
+├── data/README.md                             # provenance and no-raw-data rule
+├── docs/index.html                            # standalone master walkthrough
+├── docs/assets/                               # evidence-led diagrams and charts
+└── scripts/                                   # reproducible notebook/figure builders
 ```
 
-**Current state:** verified local baseline. **Open next step:** replace random holdout with spatially blocked validation before making any geographic-transfer claim.
+The existing combined notebook remains deliberately. The two new notebooks separate EDA from model development without deleting the prior work:
+
+| Notebook | Read it for | Why it is separate |
+|---|---|---|
+| `01_house_price_modeling.ipynb` | Legacy, combined executed baseline | Preserves prior work and saved output |
+| `01_exploratory_data_analysis.ipynb` | Data contract, distributions, correlations, location | Keeps descriptive evidence distinct from fitting |
+| `02_model_development.ipynb` | Split, pipeline, scoring, residuals, importance | Makes the evaluation boundary auditable |
+
+## End-to-end data flow
+
+```mermaid
+flowchart LR
+    A[California Housing<br/>20,640 districts] --> B{Fixed 80/20 split<br/>random_state = 42}
+    B -->|16,512 training rows| C[Fit imputer<br/>scaler + forest]
+    B -->|4,128 holdout rows| D[Remain unseen]
+    C --> E[Predict with trained pipeline]
+    D --> E
+    E --> F[MAE · RMSE · R²<br/>residual and reliance checks]
+```
+
+The ordering is the core correctness rule. The project splits raw data first. Only training rows fit the imputer, scaler, and forest. Test rows are transformed with training statistics—not with their own information—and are measured after prediction.
+
+![Holdout boundary](docs/assets/holdout_boundary.png)
+
+## Data contract and EDA findings
+
+The source has eight features and no missing values in the fetched baseline. The model still includes a median imputer, fitted only on training rows, so a future input gap does not make the workflow fail silently.
+
+| Feature | What it represents | Why an analyst should care |
+|---|---|---|
+| `MedInc` | Median income in tens of thousands of dollars | Historical area-level proxy, not causal input |
+| `HouseAge` | Median age of houses | Top-coded at 52 years |
+| `AveRooms`, `AveBedrms` | Mean rooms/bedrooms per household | Ratios can have extreme values |
+| `Population` | District population | Strongly right-skewed |
+| `AveOccup` | Mean household occupancy | Contains unusually large values |
+| `Latitude`, `Longitude` | District location | Encodes spatial structure, not an address |
+
+The EDA notebook deliberately shows null counts and numeric types; target distribution and count at the cap; tail-aware summaries; rank correlations; and an income/location view. These are descriptive diagnostics, not causal evidence.
+
+Coordinates create the key caveat: a random split can put nearby districts in both train and test sets. The score is therefore a credible **tabular baseline**, but spatially blocked cross-validation is required before making a geographic-transfer claim.
+
+### Why a pipeline rather than loose steps
+
+Fitting the scaler on the full dataset before splitting would let the test rows
+influence the training transformation. Wrapping every step in a `Pipeline` means
+`fit` touches training data only, and the identical transformation is replayed
+at prediction time.
+
+```mermaid
+flowchart TD
+    A["Raw features"] --> B["Split FIRST"]
+    B --> C["Train rows"]
+    B --> D["Test rows"]
+    C --> E["pipeline.fit()<br/>learns medians and scales"]
+    E --> F["Fitted pipeline"]
+    F --> G["pipeline.predict()<br/>applies the same transform"]
+    D --> G
+    G --> H["Honest test score"]
+
+    style B fill:#fdf1e7,stroke:#b4532a,color:#1f2933
+    style E fill:#eaf2ed,stroke:#2f6f4e,color:#1f2933
+    style H fill:#eaf2ed,stroke:#2f6f4e,color:#1f2933
+```
+
+### Choosing the model
+
+```mermaid
+flowchart LR
+    A["Tabular data<br/>numeric features"] --> B["Linear regression<br/><i>baseline: is the problem linear?</i>"]
+    A --> C["Random forest<br/><i>captures interactions</i>"]
+    B --> D{"Compare on the<br/>same held-out split"}
+    C --> D
+    D --> E["Report both,<br/>not just the winner"]
+
+    style B fill:#e8eef6,stroke:#3a6ea5,color:#1f2933
+    style C fill:#eaf2ed,stroke:#2f6f4e,color:#1f2933
+    style E fill:#fdf1e7,stroke:#b4532a,color:#1f2933
+```
+
+
+## Model decision record
+
+![Pipeline components](docs/assets/model_structure.png)
+
+| Decision | Chosen baseline | Reason | Important caveat |
+|---|---|---|---|
+| Estimator | `RandomForestRegressor` | Captures nonlinear tabular patterns with a small dependable stack | Baseline, not an optimised model search |
+| Trees | 300 | Stabilises individual-tree variance | More trees do not fix target/split limitations |
+| Minimum leaf | 2 | Discourages one-row leaves | Not a substitute for validation |
+| Imputation | Median | Robust fallback for future gaps | Current source has no missing values |
+| Scaling | `StandardScaler` | Reusable preprocessing contract for future comparisons | Trees themselves do not need scaling |
+| Seed | 42 | Repeatable split and model configuration | Does not establish external validity |
+
+The runnable pipeline is in [`src/housing_model.py`](src/housing_model.py). Its focused, tested functions are:
+
+```python
+split_data(features, targets, test_size=0.2, random_state=42)
+build_pipeline(random_state=42)
+evaluate_predictions(actual, predicted)
+feature_importance(pipeline, feature_names)
+```
+
+## Results: read all three together
+
+![Holdout metrics](docs/assets/holdout_metrics.png)
+
+| Metric | Reported value | Plain-language reading | It does not establish |
+|---|---:|---|---|
+| MAE | 0.326 | Typical holdout miss ≈ $32,600 | Uniform error across districts |
+| RMSE | 0.504 | Larger misses raise error to ≈ $50,400 | Symmetric or well-behaved residuals |
+| R² | 0.806 | 80.6% of holdout variation captured | That 80.6% of a property’s value is “known” |
+
+The numbers come from the preserved executed notebook using the fixed configuration. Reruns may differ across library or hardware versions, so the exact workflow and dependency minimums are documented.
+
+## What did the fitted forest rely on?
+
+![Feature reliance](docs/assets/feature_importance.png)
+
+`MedInc` is the largest impurity-based importance in the saved baseline, followed by occupancy and geographic coordinates. This chart describes how the fitted forest selected splits; it does **not** make a causal statement. Correlated predictors can share or distort importance, and variables with many potential splits can be favoured. A stronger next analysis uses permutation importance and reports errors by geography and target range.
+
+## Verification and reproducibility
+
+The test suite currently covers four high-value failure modes:
+
+| Check | Failure it prevents |
+|---|---|
+| Fixed split is reproducible and keeps every row | Accidental seed/split drift |
+| Pipeline returns one finite prediction per holdout row | Shape errors and failed transformations |
+| MAE/RMSE metric arithmetic | Incorrect score reporting |
+| `python src/train.py` resolves local imports | A documented command that fails outside a test runner |
+
+```text
+4 passed
+```
+
+Rebuild local documentation artefacts after changing their sources:
+
+```powershell
+python scripts/make_figures.py
+python scripts/build_notebooks.py
+```
+
+Execute companion notebooks from the project root:
+
+```powershell
+python -m jupyter nbconvert --to notebook --execute notebooks/01_exploratory_data_analysis.ipynb --output 01_exploratory_data_analysis.executed.ipynb
+python -m jupyter nbconvert --to notebook --execute notebooks/02_model_development.ipynb --output 02_model_development.executed.ipynb
+```
+
+Output notebooks are intentionally not committed; they are local evidence for your environment.
+
+## Limitations and a defensible next iteration
+
+- **Historical data:** 1990 census statistics do not represent today’s market.
+- **Censored labels:** the $500,001 cap weakens high-value conclusions.
+- **Spatial leakage risk:** random splitting can mix neighbouring areas across partitions.
+- **Area-level features:** district means cannot value an individual property.
+- **Missing real-world drivers:** condition, schools, rates, transaction time, zoning, and supply are absent.
+- **No group/error-slice audit:** no claim is made about performance across regions or populations.
+
+The highest-value next experiment is geographically blocked validation. Form spatial groups, train on some regions, test on withheld regions, and compare the metrics and residual patterns with this random-split baseline. Add permutation importance and a current, licensed, well-governed dataset only if the project’s scope changes from education to real decision support.
+
+## Master document
+
+Open the standalone visual guide at [docs/index.html](docs/index.html). It carries the same evidence trail in presentation form, so a reader can understand the project before running code.

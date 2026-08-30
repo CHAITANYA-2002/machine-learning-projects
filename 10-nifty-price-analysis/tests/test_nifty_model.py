@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 
 from src.nifty_model import create_features, chronological_split, evaluate_forecast
+from src.train import data_path
 
 
 def _prices(rows=40):
@@ -26,3 +27,9 @@ def test_evaluate_forecast_reports_price_metrics():
     metrics = evaluate_forecast(np.array([100.0, 102.0]), np.array([101.0, 101.0]))
     assert set(metrics) == {"mae", "rmse", "mape"}
     assert metrics["mae"] == 1.0
+
+
+def test_default_training_data_path_points_to_included_csv():
+    """The command-line runner must locate the dataset after the new layout."""
+    assert data_path().is_file()
+    assert data_path().name == "NSEI.csv"

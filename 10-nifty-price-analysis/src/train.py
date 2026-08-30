@@ -10,9 +10,13 @@ from sklearn.preprocessing import StandardScaler
 from src.nifty_model import FEATURE_COLUMNS, chronological_split, create_features, evaluate_forecast
 
 
+def data_path() -> Path:
+    """Return the project-local CSV path regardless of the current shell directory."""
+    return Path(__file__).resolve().parents[1] / "data" / "NSEI.csv"
+
+
 def main() -> None:
-    data_path = Path(__file__).with_name("NSEI.csv")
-    featured = create_features(pd.read_csv(data_path))
+    featured = create_features(pd.read_csv(data_path()))
     train, test = chronological_split(featured)
     model = Pipeline([("scale", StandardScaler()), ("model", LinearRegression())])
     model.fit(train[FEATURE_COLUMNS], train["target_close"])
