@@ -1,0 +1,4 @@
+# Local Python cache and Jupyter execution state.
+__pycache__/
+.ipynb_checkpoints/
+.pytest_cache/

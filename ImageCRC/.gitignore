@@ -1,0 +1,9 @@
+# Approved source images, patient/case metadata, and generated outputs stay local.
+data/
+output*/
+RGB2HSV/
+RGB2LAB/
+ycbcr_image/
+
+.ipynb_checkpoints/
+__pycache__/

@@ -24,43 +24,11 @@ import re
 import winsound  # For beep sound on Windows
 
 # ============================================================================
-# CONFIGURATION - EDIT THIS SECTION
+# LEGACY CONFIGURATION NOTE
 # ============================================================================
-#remove the comments below and add your actual credentials and API key
-# CONFIG = {
-#     # OpenAI API Key
-   
-#      "openai_api_key": "<REDACTED_OPENAI_API_KEY>",  # DO NOT COMMIT SECRETS
-
-#     # Coles Account
-#     "coles": {
-#         "username": "patelsuchit3110@gmail.com",
-#         "password": "KingSP@3110",
-#         "enabled": True,
-#         "url": "https://www.coles.com.au/"
-#     },
-    
-#     # Woolworths Account
-#     "woolworths": {
-#         "username": "patelsuchit3110@gmail.com",
-#         "password": "KingSP@3110",
-#         "enabled": True,
-#         "url": "https://www.woolworths.com.au/"
-#     },
-    
-#     # Browser Settings
-#     "browser": {
-#         "headless": False,  # Set True to hide browser
-#         "timeout": 20
-#     },
-    
-#     # Voice Settings
-#     "voice": {
-#         "rate": 160,        # Speaking speed (120-200)
-#         "volume": 1.0,      # Volume (0.0-1.0)
-#         "beep_enabled": True  # Beep before listening
-#     }
-# }
+# This historical prototype is retained, but secrets must never be pasted into
+# source code. Use `.env.example` as the configuration contract and place real
+# values only in an ignored `.env` file or a secure operating-system secret store.
 
 
 # ============================================================================

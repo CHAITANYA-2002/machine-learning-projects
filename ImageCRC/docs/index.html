@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Histology Colour Normalisation | Technical Walkthrough</title>
+  <style>
+    :root{--ink:#202038;--muted:#68687d;--bg:#f8f4f7;--card:#fff;--line:#e7dce4;--a:#8b3971;--warn:#8b4a00}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 Inter,Segoe UI,Arial,sans-serif}header{color:#fff;padding:72px max(7vw,24px) 60px;background:linear-gradient(125deg,#311b40,#8b3971,#d4759c)}main{max-width:1080px;margin:-28px auto 56px;padding:0 24px}section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:30px;margin:20px 0;box-shadow:0 8px 28px #42203b0b}h1{font-size:clamp(2.1rem,5vw,4.5rem);line-height:1.05;margin:12px 0;max-width:900px}h2{margin-top:0;font-size:1.55rem}.eyebrow,.badge{text-transform:uppercase;letter-spacing:.1em;font-weight:700;font-size:.75rem}.badge{display:inline-block;border-radius:99px;padding:5px 10px;background:#fff1df;color:var(--warn)}.lede{font-size:1.22rem;max-width:850px}.flow{white-space:pre;overflow:auto;border-radius:11px;padding:20px;background:#2e1a36;color:#ffeaf4;font:14px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(225px,1fr));gap:14px}.tile{padding:18px;background:#fcf0f6;border-left:4px solid var(--a);border-radius:7px}table{width:100%;border-collapse:collapse}th,td{text-align:left;vertical-align:top;padding:11px;border-bottom:1px solid var(--line)}th{color:var(--muted)}code{background:#f6eef3;padding:2px 5px;border-radius:4px}.callout{padding:18px;background:#fff5e8;border-left:4px solid #d77a00;border-radius:9px}a{color:#702957}footer{text-align:center;color:var(--muted);padding:12px}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">Machine-learning portfolio / medical-image preprocessing</div>
+    <h1>Histology colour-normalisation exploration</h1>
+    <p class="lede">A transparent technical walkthrough of an archived colour-transfer experiment. It explains what the code does, why its current evidence is insufficient, and what must exist before any medical-image claim is made.</p>
+    <span class="badge">Governance and source hierarchy missing · no performance claim</span>
+  </header>
+  <main>
+    <section>
+      <h2>Correcting the project identity</h2>
+      <p>The legacy README calls this compression and reconstruction. The repository contains no autoencoder, GAN, compressor, reconstruction model, PSNR calculation, SSIM calculation, or classifier training pipeline. The inspected Python script and notebooks perform colour-space conversion and LAB-statistic colour transfer.</p>
+      <div class="callout"><strong>Clinical boundary:</strong> transformed images are research artifacts, not diagnostic images. A visual change cannot be assumed to preserve all medically relevant detail.</div>
+    </section>
+    <section>
+      <h2>Evidence ledger</h2>
+      <table><thead><tr><th>Question</th><th>Local evidence</th><th>Conclusion</th></tr></thead><tbody>
+        <tr><td>What is implemented?</td><td>OpenCV LAB colour transfer, resize, and colour-space exports</td><td>Verified by code inspection.</td></tr>
+        <tr><td>Where are inputs/outputs?</td><td>Personal Colab Google Drive paths</td><td>Not portable or reproducible.</td></tr>
+        <tr><td>What is the reference?</td><td>A hard-coded `Patient_012_01_Normal.png` path</td><td>Selection protocol missing.</td></tr>
+        <tr><td>Are final images a benchmark?</td><td>Assets exist, but provenance/licence/case metadata do not</td><td>No evaluation claim is permitted.</td></tr>
+      </tbody></table>
+    </section>
+    <section>
+      <h2>Implemented data flow</h2>
+      <div class="flow">source BGR image ─► resize(250px) ─► BGR→LAB ─┐
+                                                   │        ├─► mean/std per L,a,b
+reference BGR image ─► resize(250px) ─► BGR→LAB ─┘              │
+                                                                   ▼
+                                                       adjust LAB channels
+                                                                   ▼
+                                                   clip/scale → LAB→BGR → file</div>
+      <p>LAB is used because it separates a lightness-like channel from two opponent-colour channels. That is an engineering convention, not a guarantee of histological validity. The selected reference acts as a fixed visual target for every image in the batch.</p>
+    </section>
+    <section>
+      <h2>Where errors can enter</h2>
+      <div class="flow">unstable staining / scanner ─► source image ─┐
+                                               reference selection ─┼─► transformed image
+                                                script branch logic ─┤
+                                                 clip / 8-bit cast ─┘
+
+Possible failures: reference bias · clipped pixels · broken colour balance ·
+loss of source context · patient/site leakage in a later downstream study</div>
+      <p>The archived code has a branch where the chroma-channel adjustment is not applied consistently. This makes outputs hard to explain, and is a reason to replace the experimental script with a tested implementation rather than quietly rely on it.</p>
+    </section>
+    <section>
+      <h2>Required recovery controls</h2>
+      <div class="grid">
+        <div class="tile"><strong>Governance</strong><br>Establish licence, de-identification, consent/scope, and access controls before using images.</div>
+        <div class="tile"><strong>Reference protocol</strong><br>Record stain, scanner, tissue class, reviewer approval, and immutable reference hash.</div>
+        <div class="tile"><strong>Case-safe split</strong><br>Assign entire cases/patients and sites to one split before transformation or a downstream task.</div>
+        <div class="tile"><strong>Audit trail</strong><br>Log source hash, reference hash, script version, settings, clipping, output hash, and failures per file.</div>
+      </div>
+    </section>
+    <section>
+      <h2>Validation plan</h2>
+      <div class="flow">lock protocol → split by case/site → transform separately per split
+       → measure pixel/channel changes + clipping → expert review
+       → optional downstream research experiment → publish limitations</div>
+      <p>PSNR and SSIM require a known pixel-level reference. They are not a default quality score for normalisation because the desired output intentionally differs in colour. A future study should define its acceptance criteria before inspecting results and include pathology-expert review on held-out examples.</p>
+    </section>
+    <section>
+      <h2>Current conclusion</h2>
+      <p>This is useful evidence of a colour-normalisation prototype, not a validated medical-imaging system. The correct next milestone is a governed dataset and reproducible, tested pipeline—not a synthetic metric or a clinical claim.</p>
+      <p><a href="../README.md">Read the project README</a> · <a href="../LEGACY_README.md">View the preserved legacy README</a></p>
+    </section>
+  </main>
+  <footer>Documentation separates inspected code, missing evidence, and future validation requirements.</footer>
+</body>
+</html>

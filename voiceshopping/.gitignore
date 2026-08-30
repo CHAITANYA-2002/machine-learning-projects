@@ -18,5 +18,8 @@ __pycache__/
 # Local environment file (do not commit secrets)
 .env
 
+# Browser screenshots, HTML dumps, and traces can expose account/cart details.
+logs/
+
 # VSCode workspace
 .vscode/

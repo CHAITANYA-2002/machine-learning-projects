@@ -29,6 +29,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service
 from pathlib import Path
 from datetime import datetime
+from order_validation import validate_order_item
 # Load .env values into the environment if present
 from dotenv import load_dotenv
 load_dotenv()
@@ -311,7 +312,10 @@ If no specific items mentioned yet, respond with: []"""
             result = response.choices[0].message.content.strip()
             # Remove markdown code blocks if present
             result = result.replace("```json", "").replace("```", "").strip()
-            return json.loads(result)
+            parsed_items = json.loads(result)
+            if not isinstance(parsed_items, list):
+                raise ValueError("Expected a JSON array of shopping items")
+            return [validate_order_item(item) for item in parsed_items]
             
         except Exception as e:
             print(f"❌ Extraction error: {e}")

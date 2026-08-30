@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gait-Trajectory Study | Technical Walkthrough</title>
+  <style>
+    :root { --ink:#12243a; --muted:#55677c; --paper:#fff; --bg:#f3f8f8; --line:#d9e5e7; --a:#007d82; --warning:#9a4d00; }
+    * { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.65 Inter,Segoe UI,Arial,sans-serif; }
+    header { padding:72px max(7vw,24px) 60px; background:linear-gradient(125deg,#092c3a,#007d82,#1bab9f); color:#fff; }
+    main { max-width:1080px; margin:-28px auto 56px; padding:0 24px; } section { background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:30px; margin:20px 0; box-shadow:0 8px 28px #12333b0a; }
+    h1 { font-size:clamp(2.1rem,5vw,4.5rem); line-height:1.05; margin:12px 0; max-width:900px; } h2 { margin-top:0; font-size:1.55rem; }
+    .eyebrow,.badge { text-transform:uppercase; letter-spacing:.1em; font-weight:700; font-size:.75rem; } .badge { display:inline-block; border-radius:99px; padding:5px 10px; background:#fff1df; color:var(--warning); }
+    .lede { font-size:1.22rem; max-width:840px; }.flow { white-space:pre; overflow:auto; border-radius:11px; background:#102b35; color:#def5f4; padding:20px; font:14px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(225px,1fr)); gap:14px; } .tile { border-left:4px solid var(--a); border-radius:7px; background:#eef9f8; padding:18px; }
+    table { width:100%; border-collapse:collapse; } th,td { text-align:left; vertical-align:top; padding:11px; border-bottom:1px solid var(--line); } th { color:var(--muted); }
+    code { padding:2px 5px; background:#edf4f4; border-radius:4px; }.callout { padding:18px; background:#fff5e8; border-left:4px solid #df7d00; border-radius:9px; } a { color:#00696d; } footer { text-align:center; color:var(--muted); padding:12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">Machine-learning portfolio / research archive</div>
+    <h1>Gait-trajectory sequence-modeling study</h1>
+    <p class="lede">A technical record of DNN and LSTM exploration with a clear line between inspected notebook code and evidence that cannot be reproduced without the original motion data.</p>
+    <span class="badge">Source dataset unavailable · no metric claimed</span>
+  </header>
+  <main>
+    <section>
+      <h2>Why this walkthrough begins with data</h2>
+      <p>Motion sequences can reveal health and behavioural information. Before discussing deep learning, a reviewer needs to know how trajectories were captured, what every axis and target means, which participants consented, and whether each participant is isolated to one evaluation split. Those facts are absent from the archived notebooks.</p>
+      <div class="callout"><strong>Scope:</strong> this is not a diagnostic, rehabilitation prescription, fall-risk score, or identity system. It is preserved exploratory work awaiting a reproducible research protocol.</div>
+    </section>
+    <section>
+      <h2>Evidence ledger</h2>
+      <table><thead><tr><th>Question</th><th>Evidence in the checkout</th><th>Conclusion</th></tr></thead><tbody>
+        <tr><td>Are neural-network experiments present?</td><td><code>DNN.ipynb</code>, <code>lstm.ipynb</code>, and <code>final.ipynb</code></td><td>Yes, code is preserved.</td></tr>
+        <tr><td>Can inputs be loaded?</td><td>References to <code>Book14.csv</code>, <code>Book13.csv</code>, <code>Book.csv</code>, <code>s1i-5.csv</code>, and <code>lstm1 ankle.csv</code>; files absent</td><td>No.</td></tr>
+        <tr><td>Can a metric be trusted?</td><td>No data dictionary, split manifest, run log, or clean executed result</td><td>No metric is claimed.</td></tr>
+        <tr><td>Does <code>main.py</code> run the model?</td><td>It schedules sports sessions and has no notebook connection</td><td>No; it is an unrelated utility.</td></tr>
+      </tbody></table>
+    </section>
+    <section>
+      <h2>Architecture and information flow</h2>
+      <div class="flow">consented sensor / motion-capture trials
+             │
+             ▼
+metadata + data dictionary ──► quality checks / coordinate validation
+             │                              │
+             ▼                              ▼
+participant-and-trial group split ──► training-only scaling + windows
+                                           │
+                         ┌─────────────────┴─────────────────┐
+                         ▼                                   ▼
+                fixed-feature DNN                    ordered-window LSTM
+                         └─────────────────┬─────────────────┘
+                                           ▼
+                untouched participant-level test evaluation</div>
+      <p>A DNN is a plausible baseline when each row is a fixed engineered feature vector. An LSTM becomes plausible only when window order, sampling rate, units, and target horizon are defined. Architecture choice cannot compensate for unknown labels or leakage.</p>
+    </section>
+    <section>
+      <h2>The critical leakage boundary</h2>
+      <p>Do not split raw rows or overlapping windows randomly. Adjacent frames from one walk are highly similar; putting them in train and test would make the model appear to generalise when it has merely seen the same person and trial.</p>
+      <div class="flow">participant P17 / trial T04 → frames 1…500 → windows 1…N → assigned to TEST
+participant P17 / trial T05 → frames 1…500 → windows 1…N → assigned to TEST
+participant P22 / trial T01 → frames 1…500 → windows 1…N → assigned to TRAIN
+
+Split participants/trials first. Window and normalise separately within each split.</div>
+    </section>
+    <section>
+      <h2>Recovery checklist</h2>
+      <div class="grid">
+        <div class="tile"><strong>1. Restore provenance</strong><br>Secure the original CSVs, consent/reuse conditions, device details, and a data dictionary.</div>
+        <div class="tile"><strong>2. Define the target</strong><br>State whether the model predicts coordinates, an event, or a score, with units and horizon.</div>
+        <div class="tile"><strong>3. Freeze the manifest</strong><br>Use participant and trial IDs to create train/validation/test splits before feature work.</div>
+        <div class="tile"><strong>4. Earn a result</strong><br>Compare with simple baselines and report held-out errors, uncertainty, and failure modes.</div>
+      </div>
+    </section>
+    <section>
+      <h2>Failure analysis and prevention</h2>
+      <table><thead><tr><th>Historical gap</th><th>Risk</th><th>Future guard</th></tr></thead><tbody>
+        <tr><td>Ad-hoc CSV filenames</td><td>Unclear lineage and accidental wrong inputs</td><td>One config path plus a documented manifest</td></tr>
+        <tr><td>Historical saved notebook errors</td><td>Outputs can look like valid current results</td><td>Fresh-kernel run with saved environment and logs</td></tr>
+        <tr><td>No visible group split</td><td>Trajectory-window leakage</td><td>Participant/trial-grouped test split</td></tr>
+        <tr><td>MSE described as activation</td><td>Model design cannot be reviewed accurately</td><td>Model card records loss, activations, targets, and units</td></tr>
+      </tbody></table>
+    </section>
+    <section>
+      <h2>Current state</h2>
+      <p>The notebooks are valuable evidence of early exploration, not a verified predictor. The next legitimate milestone is a documented, consented dataset with a participant-safe split—not a new architecture or an unqualified accuracy claim.</p>
+      <p><a href="../README.md">Read the project README</a> · <a href="../LEGACY_README.md">View the preserved legacy README</a></p>
+    </section>
+  </main>
+  <footer>Documentation deliberately separates source-code inspection from validated experimental evidence.</footer>
+</body>
+</html>

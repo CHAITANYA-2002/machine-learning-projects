@@ -1,0 +1,9 @@
+# Gait captures and derived participant data are local and potentially sensitive.
+data/
+*.csv
+
+# Generated outputs.
+*.h5
+*.keras
+.ipynb_checkpoints/
+__pycache__/

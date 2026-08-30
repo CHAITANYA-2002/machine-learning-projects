@@ -1,91 +1,118 @@
-# background-remover
+# Background Remover — Segmentation Experiments
 
-## ```Background_Removal.ipynb```
-This Notebook has been created for removing backgrounds fron images, using primarily two methods
+**A preserved computer-vision experiment comparing pretrained instance segmentation with classical contour-based masking.**
 
-1.   Deep Learning (Facebook's Detectron2 Pre-Trained Models)
-2.   Classical Computer Vision (Experimental) (This approach is more of an experimental one, intended to not be the baseline, but as a method to understand more about basics of computer vision)
+`3 original notebooks · Detectron2 + classical CV paths · COCO/Kaggle paths absent · no local output-quality claim`
 
-## PLEASE OPEN THE SOLUTION IN GOOGLE COLAB
-- Preview the `Background_Removal.ipynb` in GitHub 
-- Click `Open In Colab`
+> Removing a background is a segmentation problem: classify which pixels belong to a selected foreground object. A visually plausible cut-out is not proof that every boundary pixel is correct—hair, glass, shadows, occlusion, and multiple subjects make the problem inherently ambiguous.
 
-## Instructions for using `Deep Learning` based solution - 
+---
 
-1. Switch to a GPU Runtime offered by Google Colab (Runtime-> Change Runtime Type -> GPU )
-2. Install the libraries by running the `Install (Run Once) (USE GPU RUNTIME)` Tab
-3. The runtime **WILL Crash**, let it ,as it is required to restart the runtime.
-4. Expand the `Import Libraries and Upload Images` Tab
-5. Upload the foreground and background images as prompted by the cell which is running, and let it upload.
-6. Expand the `Approach 1 - Detectron2` Tab
-7. Expand the `Input Area - Play with these parameters`, and edit the parameters accordingly. For a good baseline to start working with tick the `USE_DEFAULT` check-box and run the cell.
-8. Run all the cells within the `Functions` Tab, no need to open.
-9. Expand the Display and run all cells. Enjoy the output.
+## 1 · Two methods answer different questions
 
-NOTE - The first run of every model takes more time than usual, because the notebook downloads each model the first time it is required. The subsequent calls to the model don't require downloading.
+The project contains two approaches that should not be presented as interchangeable.
 
-## Instructions for using `Classical CV` based solution - 
-1. Restart the Runtime `Ctrl+M` and repeat step 2
-2. Repeat Steps 4 and 5
-3. Expand the `Approach 2 - Classical CV (Experimental)` Tab
-4. Repeat Step 7, but for the current expanded Tab.
-5. Repeat Step 8, but for the current expanded Tab.
-6. Repeat Step 9, but for the current expanded Tab.
+```mermaid
+flowchart LR
+    A[Input image] --> B{Approach}
+    B --> C[Detectron2 pretrained instance segmentation]
+    B --> D[Classical blur / edges / contours]
+    C --> E[Object mask selected from learned classes]
+    D --> F[Heuristic foreground mask]
+    E --> G[Composite or transparent output]
+    F --> G
+```
 
-## Theoretical Concepts and Code Inspirations - 
-For Deeep Learning Based solution - 
-1. https://ai.facebook.com/blog/-detectron2-a-pytorch-based-modular-object-detection-library-/
-2. https://github.com/facebookresearch/detectron2
-3. https://www.jeremyjordan.me/semantic-segmentation/
+| Approach | What it learns/assumes | Strength | Main failure mode |
+|---|---|---|---|
+| Detectron2 | COCO-pretrained object categories and masks | General object boundaries for supported classes | Unsupported/occluded objects, class confusion, download/runtime dependency |
+| Classical CV | Pixel contrast, blur, contours, morphology | Useful educational baseline, no semantic model | Similar foreground/background colours, shadows, clutter |
 
-For the Computer Vision Based Solution - 
-1. https://docs.opencv.org/3.4/d4/d73/tutorial_py_contours_begin.html#:~:text=Contours%20can%20be%20explained%20simply,and%20object%20detection%20and%20recognition.&text=In%20OpenCV%2C%20finding%20contours%20is,white%20object%20from%20black%20background.
-2. https://docs.opencv.org/master/d4/d13/tutorial_py_filtering.html
-3. https://radiant-brushlands-42789.herokuapp.com/towardsdatascience.com/background-removal-with-python-b61671d1508a
-4. https://pillow.readthedocs.io/en/stable/reference/PixelAccess.html
+The deep path is not automatically “better”; it has a stronger learned prior. The classical path is not an alternative semantic segmentation system; it is an explainable heuristic experiment.
 
+## 2 · System at a glance
 
-## About the Parameters in Deep Learning Method- 
-1. `YAML` - This contains a plethors of models pre-trained on the `COCO` dataset - https://cocodataset.org/#home
-- To know more about these models and their metrics - https://github.com/facebookresearch/detectron2/blob/main/MODEL_ZOO.md
-- TLDR - We have included both instance and panoptic segmentation
+| Notebook | Role | Runtime boundary |
+|---|---|---|
+| `Background_Removal.ipynb` | Main interactive Detectron2 and classical-CV walkthrough | Designed for Google Colab GPU and uploaded images |
+| `Flask_BG_Remove.ipynb` | Notebook-hosted Flask demonstration | Colab, GPU, temporary ngrok-style endpoint |
+| `coco-UNET-.ipynb` | COCO/U-Net training exploration | Kaggle COCO 2017 paths and GPU training |
+| `templates/index.html` | Original Flask template | Preserved support asset |
 
-## About the Parameters in Classical CV Approach- 
-1. `Blur` - This provides the kernel size of the gaussian blur that you want to use in order to *smoothen* out the prediction mask.
-2. `Erode Iter` - This is used as a morphological transformation method, in order to *sharpen* out the mask acquired.
-3. `Dilate Iter` - This is used as a morphological transformation method, in order to *expand* out the mask acquired.
-4. `Min Area` and `Max Area` - As per the edges detected, it is used to specify the minimum area and the maximum area of the them, so as to transform them into contours after filling them.
+```mermaid
+flowchart TB
+    A[User-provided image] --> B[Decode + colour conversion]
+    B --> C[Segmentation or contour mask]
+    C --> D[Optional morphology / mask cleanup]
+    D --> E[Alpha composite onto output/background]
+```
 
+## 3 · Data and runtime contract
 
-## ```Flask_BG_Remove.ipynb```
+The COCO U-Net notebook references these Kaggle-only paths, which do not exist in the local checkout:
 
-This Notebook has been created for removing backgrounds using a Flask Web App, where this notebook acts as a back-end.
+```text
+/kaggle/input/coco-2017-dataset/coco2017/
+├── train2017/
+├── val2017/
+├── test2017/
+└── annotations/
+```
 
-METHOD - Detectron2 (Facebook)
-MODEL USED - mask_rcnn_X_101_32x8d_FPN_3x
+The main notebook instead expects a user to upload a foreground image and, where relevant, a replacement background. The Flask notebook is a temporary demonstration, not a deployable service: a Colab runtime and tunnel URL end when the session ends.
 
-## Instructions for using `Flask Deployment` based solution - 
+## 4 · Mask-quality boundary
 
-1. Switch to a GPU Runtime offered by Google Colab (Runtime-> Change Runtime Type -> GPU )
-2. Install the libraries by running the `Install (Run Once) (USE GPU RUNTIME)` Tab
-3. Restart the runtime **manually** (it is required, yes.)
-4. Expand the `Import Libraries and Upload Images` Tab
-5. Run the code till the end. 
-6. In the second last cell, you can see something like this 
-`` * Running on http://2b55-35-223-110-102.ngrok.io``, the URL can be different slightly, but open it as this is where the Web App has been deployed.
-7. In order to do more iterations of the images, you have to close the web-app, and stop the running cell, and run the last cell, then proceed to running the webapp again.
+No local labelled-mask dataset or benchmark output is included. Therefore this project cannot currently report IoU, Dice, boundary F-score, class-specific recall, latency, or an accuracy figure. Visual examples are useful demonstrations, not evaluation evidence.
 
+```mermaid
+flowchart LR
+    A[Predicted mask] --> B{Need a quality claim?}
+    B -->|Yes| C[Ground-truth masks + held-out images]
+    C --> D[IoU / Dice / boundary metrics]
+    B -->|No| E[Present as illustrative output only]
+```
 
-## Tech Stack Used
-<img src="https://cdn.worldvectorlogo.com/logos/python-5.svg" alt="Python Logo" height="100"/> <img src="https://upload.wikimedia.org/wikipedia/commons/9/96/Pytorch_logo.png" alt="PyTorch Logo" height="100"/> <img src="http://cms.ipressroom.com.s3.amazonaws.com/219/files/20149/NVIDIA_CUDA_V_2C_r.jpg" alt="CUDA Logo" height="100"/> <img src="https://raw.githubusercontent.com/valohai/ml-logos/master/numpy-simple.svg" alt="Numpy" height="100"/> <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/OpenCV_Logo_with_text.png" alt="OpenCV" height="100"/> <img src="https://cdn.icon-icons.com/icons2/2699/PNG/512/pocoo_flask_logo_icon_168045.png" alt="Flask" height="100"/>
+## 5 · Original operational risks
 
+The notebooks make several environment-specific assumptions: a compatible GPU, dynamic package installation, a forced runtime restart, a temporary web tunnel, Colab upload widgets, and Kaggle-mounted COCO paths. These are not defects in a classroom exploration, but they prevent a visitor from reproducing the project on a local machine without a data/runtime contract.
 
+The original material is preserved. The recovery path is to extract a local Python service/CLI with explicit input/output paths, pinned dependencies, model-download provenance, and an optional CPU fallback before calling it deployable.
 
+## 6 · Responsible use
 
-## TO-DO
-- Choice for the user to provide color/background (FIX ERRORS) (FLASK)
-- Clear the output image. (FLASK)
-- A loop of retraining and fine-tuning the model is under-development.
-- A Script to do the detectron task on CPU and use it in real time background replacement, is under-development.
-- A YOLO and a GrabCut based approach is also under-development.
-- A code to retrain DeepLab model on the MS COCO Dataset, which provides excellent results, is also under-development. 
+- A mask can remove or alter context; preserve originals and disclose transformations.
+- Do not use automatic masks as final evidence in medical, legal, surveillance, identity, or safety-critical workflows.
+- Confirm rights and consent before uploading images to a notebook host or third-party model service.
+- Treat missed pixels and accidental foreground/background swaps as expected failure modes, not edge cases.
+
+## 7 · Verification and state
+
+| State | Evidence |
+|---|---|
+| Original notebooks preserved | Three notebooks and Flask template remain local |
+| Local COCO training unavailable | Kaggle input hierarchy absent |
+| Local mask-quality metrics unavailable | No ground-truth evaluation set included |
+| Flask deployment not claimed | Notebook hosts only a temporary Colab/tunnel demonstration |
+| Open next step | Localise paths, pin environment, restore authorised test masks, measure mask quality |
+
+**Current state:** documented preserved experiment; data/runtime-dependent execution blocked. No performance or deployment claim is made.
+
+## A · Recommended recovery layout
+
+```text
+background_remover/
+├── data/
+│   ├── input/
+│   └── evaluation/             # images and ground-truth masks
+├── models/                     # declared model weights and provenance
+├── outputs/                    # generated; not source images
+├── Background_Removal.ipynb    # preserved original
+└── README.md
+```
+
+Run only after reproducing the original environment and reviewing dependency compatibility:
+
+```powershell
+jupyter lab
+```

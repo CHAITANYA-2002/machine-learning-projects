@@ -6,6 +6,8 @@ import re
 import json
 from typing import Optional, List, Dict
 
+from order_validation import validate_item_intent
+
 from openai import OpenAI
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -145,7 +147,10 @@ User: {text}
             messages=[{"role": "user", "content": prompt}],
             temperature=0
         )
-        return json.loads(res.choices[0].message.content)
+        try:
+            return validate_item_intent(json.loads(res.choices[0].message.content))
+        except (json.JSONDecodeError, ValueError) as error:
+            raise ValueError("The assistant returned an invalid shopping item.") from error
 
 # ============================================================
 # SELENIUM AUTOMATION

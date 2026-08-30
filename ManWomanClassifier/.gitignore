@@ -1,0 +1,9 @@
+# Potentially sensitive and/or licensed image data must remain local.
+data/
+
+# Generated model artifacts and notebook checkpoints.
+*.h5
+*.keras
+*.pkl
+.ipynb_checkpoints/
+__pycache__/

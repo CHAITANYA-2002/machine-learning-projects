@@ -1,50 +1,34 @@
-import numpy as np 
-import pandas as pd
-import tensorflow as tf
-from tensorflow import keras
-import sklearn.datasets.fetch_california_housing
+"""Train and evaluate the California House Price Predictor from the command line."""
 
- #loading dataset
-housing=fetch_california_housing()
+from sklearn.datasets import fetch_california_housing
+
+from housing_model import build_pipeline, evaluate_predictions, feature_importance, split_data
 
 
-#spiliting dataset
-from sklearn.model_selection import train_test_split
-
-x_train,x_test,y_train,y_test= train_test_split(housing.data,housing,target,random_state=40)
+RANDOM_STATE = 42
 
 
-#normalizing dataset
-from sklearn.preprocessing import StandardScaler
+def main() -> None:
+    # The dataset is fetched by scikit-learn on the first run and cached locally.
+    housing = fetch_california_housing(as_frame=True)
+    X_train, X_test, y_train, y_test = split_data(
+        housing.data, housing.target, test_size=0.2, random_state=RANDOM_STATE
+    )
 
-scaler=StandardScaler()
-x_train=scaler.fit_transform(x_train)
-x_test=scaler.transform(x_test)
+    pipeline = build_pipeline(random_state=RANDOM_STATE)
+    pipeline.fit(X_train, y_train)
+    predictions = pipeline.predict(X_test)
+    metrics = evaluate_predictions(y_test, predictions)
 
-#setting seeds
-np.random.seed(40)
-tf.random.set_seed(40)
-
-#creation of model
-
-model=keras.models.Sequential([
-	#8 diff args
-	keras.layers.Dense(40,activation="relu",input_state=[8])
-	keras.layers.Dense(40,activation="relu")
-	#regression model one singe output
-	keras.layers.Dense(1)
-
-	])
-#compile
-model.compile(loss="mean_squared_error",optimizer=keras.optimizers.SGD(lr=1e-3),mertics=['mae'])
+    print("California House Price Predictor")
+    print(f"Training rows: {len(X_train):,} | Test rows: {len(X_test):,}")
+    print(f"MAE:  {metrics['mae']:.3f} ($100,000s)")
+    print(f"RMSE: {metrics['rmse']:.3f} ($100,000s)")
+    print(f"R2:   {metrics['r2']:.3f}")
+    print("\nTop feature importances:")
+    for feature, importance in list(feature_importance(pipeline, list(X_train.columns)).items())[:5]:
+        print(f"  {feature}: {importance:.3f}")
 
 
-#fitting of data
-
-done_model=model.fit(x_train,y_train,epochs=80)
-
-
-#prediction
-
-pred=done_model.predict(x_train)
-print(pred)
+if __name__ == "__main__":
+    main()
