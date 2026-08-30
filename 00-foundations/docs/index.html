@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Foundations — Classical ML from Scratch</title>
+<meta name="description" content="Five classical machine-learning algorithms implemented from first principles in NumPy and verified against scikit-learn.">
+<style>
+  :root {
+    --bg: #fbfaf8;
+    --surface: #ffffff;
+    --border: #e4e1dc;
+    --ink: #22201d;
+    --ink-soft: #57534e;
+    --muted: #8a847c;
+    --accent: #2f6f4e;
+    --accent-soft: #eaf2ed;
+    --warn: #b4532a;
+    --warn-soft: #fdf1e7;
+    --code-bg: #f5f3f0;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161513;
+      --surface: #1e1d1a;
+      --border: #35322d;
+      --ink: #ece8e1;
+      --ink-soft: #b8b2a8;
+      --muted: #8a847c;
+      --accent: #7fc0a0;
+      --accent-soft: #1c2a23;
+      --warn: #e0956c;
+      --warn-soft: #2b211a;
+      --code-bg: #24221f;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #161513;
+    --surface: #1e1d1a;
+    --border: #35322d;
+    --ink: #ece8e1;
+    --ink-soft: #b8b2a8;
+    --muted: #8a847c;
+    --accent: #7fc0a0;
+    --accent-soft: #1c2a23;
+    --warn: #e0956c;
+    --warn-soft: #2b211a;
+    --code-bg: #24221f;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 780px; margin: 0 auto; padding: 0 24px 96px; }
+
+  /* ---------- masthead ---------- */
+  header.masthead {
+    padding: 72px 0 40px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 18px;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-size: clamp(30px, 5.5vw, 46px);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin: 0 0 20px;
+    font-weight: 600;
+  }
+  .standfirst {
+    font-size: 19px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    margin: 0 0 28px;
+    max-width: 60ch;
+  }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .chip {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 5px 11px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--ink-soft);
+    background: var(--surface);
+    white-space: nowrap;
+  }
+  .chip.pass { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+  /* ---------- typography ---------- */
+  h2 {
+    font-family: var(--serif);
+    font-size: 27px;
+    letter-spacing: -0.01em;
+    margin: 64px 0 8px;
+    font-weight: 600;
+    scroll-margin-top: 24px;
+  }
+  h2 .num {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 6px;
+    letter-spacing: 0.1em;
+    font-weight: 400;
+  }
+  h3 {
+    font-size: 17px;
+    margin: 36px 0 10px;
+    font-weight: 650;
+    letter-spacing: -0.005em;
+  }
+  p { margin: 0 0 18px; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  strong { font-weight: 650; }
+  code {
+    font-family: var(--mono);
+    font-size: 0.87em;
+    background: var(--code-bg);
+    padding: 2px 5px;
+    border-radius: 4px;
+  }
+  ul { margin: 0 0 18px; padding-left: 22px; }
+  li { margin-bottom: 8px; }
+  li::marker { color: var(--muted); }
+
+  /* ---------- figures ---------- */
+  figure {
+    margin: 28px 0;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  figure img { width: 100%; height: auto; display: block; border-radius: 4px; }
+  figcaption {
+    font-size: 13.5px;
+    color: var(--muted);
+    margin-top: 12px;
+    line-height: 1.55;
+  }
+
+  /* ---------- tables ---------- */
+  .table-scroll { overflow-x: auto; margin: 24px 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14.5px;
+    min-width: 460px;
+  }
+  th, td {
+    text-align: left;
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    font-size: 11.5px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    border-bottom-width: 1.5px;
+  }
+  td.num { font-family: var(--mono); font-size: 13px; white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: none; }
+
+  /* ---------- callouts ---------- */
+  .note {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 16px 20px;
+    border-radius: 0 8px 8px 0;
+    margin: 24px 0;
+    font-size: 15px;
+  }
+  .note.warn { border-left-color: var(--warn); background: var(--warn-soft); }
+  .note p:last-child { margin-bottom: 0; }
+  .note .label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 7px;
+  }
+  .note.warn .label { color: var(--warn); }
+
+  /* ---------- code blocks ---------- */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    margin: 20px 0;
+  }
+  pre code { background: none; padding: 0; font-size: 13px; line-height: 1.6; }
+
+  /* ---------- contents ---------- */
+  nav.toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 8px;
+  }
+  nav.toc h2 { font-size: 12px; font-family: var(--mono); letter-spacing: 0.11em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+  nav.toc ol { margin: 0; padding-left: 20px; font-size: 14.5px; }
+  nav.toc li { margin-bottom: 6px; }
+  nav.toc a { text-decoration: none; color: var(--ink-soft); }
+  nav.toc a:hover { color: var(--accent); text-decoration: underline; }
+
+  /* ---------- verdict cards ---------- */
+  .cards { display: grid; gap: 12px; margin: 24px 0; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .card .k { font-family: var(--mono); font-size: 22px; color: var(--accent); display: block; letter-spacing: -0.02em; }
+  .card .v { font-size: 13px; color: var(--muted); margin-top: 4px; display: block; line-height: 1.45; }
+
+  footer {
+    margin-top: 72px;
+    padding-top: 28px;
+    border-top: 1px solid var(--border);
+    font-size: 14px;
+    color: var(--muted);
+  }
+  footer a { color: var(--ink-soft); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Portfolio · Project 00</p>
+  <h1>Classical ML algorithms, written from scratch and checked against scikit&#8209;learn</h1>
+  <p class="standfirst">
+    Five foundational algorithms implemented in NumPy from their published
+    descriptions. The point is not that they work — it is that an automated
+    test-suite proves they agree with the library implementations they imitate.
+  </p>
+  <div class="meta-row">
+    <span class="chip pass">72 tests passing</span>
+    <span class="chip">NumPy · pandas · scikit-learn</span>
+    <span class="chip">7 notebooks, all executing</span>
+    <span class="chip">Dec 2022 — the starting point</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#why">Why reimplement anything</a></li>
+    <li><a href="#verified">What is actually verified</a></li>
+    <li><a href="#finds">Find-S, and three ways to be wrong</a></li>
+    <li><a href="#impurity">Entropy, Gini, and the split decision</a></li>
+    <li><a href="#knn">KNN, and an honest disagreement</a></li>
+    <li><a href="#bayes">Naive Bayes: smoothing and underflow</a></li>
+    <li><a href="#scaling">The scaling trap</a></li>
+    <li><a href="#run">Running it yourself</a></li>
+    <li><a href="#limits">What this is not</a></li>
+  </ol>
+</nav>
+
+<h2 id="why"><span class="num">01</span>Why reimplement anything</h2>
+
+<p>
+  This folder started as coursework — a mix of algorithms I worked through
+  myself and tutorials I followed while learning. The original notebooks are
+  preserved unchanged in substance under <code>notebooks/</code>, because
+  deleting them would hide where this actually began.
+</p>
+
+<p>
+  But a notebook that calls <code>KNeighborsClassifier</code> demonstrates that
+  I can read documentation. It does not demonstrate that I know what the
+  estimator does. So each algorithm was rewritten in <code>src/</code> from its
+  published description, and a test-suite asserts the result matches
+  scikit&#8209;learn's.
+</p>
+
+<div class="note">
+  <span class="label">The standard applied</span>
+  <p>
+    Anywhere the implementation and scikit&#8209;learn disagree, either the
+    implementation is wrong or the disagreement has a documented reason.
+    Section 5 covers the one case where the reason is real.
+  </p>
+</div>
+
+<h2 id="verified"><span class="num">02</span>What is actually verified</h2>
+
+<p>Every row below corresponds to a test. None of it is asserted on trust.</p>
+
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr><th>Implementation</th><th>Checked against</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>entropy</code>, <code>gini</code></td><td>Tree root impurity</td><td>Exact match</td></tr>
+    <tr><td><code>information_gain</code></td><td>Mitchell's published gains</td><td>4 decimal places</td></tr>
+    <tr><td><code>best_split</code></td><td>Tree root feature</td><td>Same feature</td></tr>
+    <tr><td><code>KNearestNeighbours</code></td><td><code>KNeighborsClassifier</code></td><td>Identical predictions</td></tr>
+    <tr><td><code>CategoricalNaiveBayes</code></td><td><code>CategoricalNB</code></td><td>Posteriors to 5.6e&#8722;16</td></tr>
+    <tr><td><code>FindS</code></td><td>Mitchell's worked example</td><td>Exact hypothesis</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="cards">
+  <div class="card"><span class="k">0.9403</span><span class="v">PlayTennis root entropy, bits</span></div>
+  <div class="card"><span class="k">0.2467</span><span class="v">Information gain of <code>outlook</code></span></div>
+  <div class="card"><span class="k">5.6e&#8722;16</span><span class="v">Max posterior difference vs scikit-learn</span></div>
+  <div class="card"><span class="k">72</span><span class="v">Tests passing in 2.1s</span></div>
+</div>
+
+<h2 id="finds"><span class="num">03</span>Find-S, and three ways to be wrong</h2>
+
+<p>
+  Find-S searches for the most specific hypothesis consistent with the positive
+  examples. It starts maximally specific and relaxes a constraint to
+  <code>?</code> whenever a new positive example disagrees.
+</p>
+
+<figure>
+  <img src="assets/find_s_generalisation.png" alt="Table showing the Find-S hypothesis after each positive example, with relaxed constraints highlighted">
+  <figcaption>
+    The hypothesis after each positive example. Highlighted cells are
+    constraints that have been relaxed to <code>?</code>. Constraints only ever
+    loosen — the algorithm can never tighten one back up.
+  </figcaption>
+</figure>
+
+<p>Find-S earns its place by being instructively wrong in three ways:</p>
+
+<ul>
+  <li><strong>It ignores negative examples entirely.</strong> The test
+    <code>test_negative_examples_are_ignored</code> adds a negative example and
+    asserts the learned hypothesis is byte-identical.</li>
+  <li><strong>It cannot express disjunction.</strong> Two positives that
+    disagree on an attribute collapse it straight to <code>?</code>, discarding
+    the fact that only two specific values were ever observed.</li>
+  <li><strong>It assumes noise-free data.</strong> One mislabelled positive
+    over-generalises the hypothesis permanently, with no recovery mechanism.</li>
+</ul>
+
+<p>
+  Version spaces, decision trees, and ensembles are each in some sense a
+  response to one of those three failures.
+</p>
+
+<h2 id="impurity"><span class="num">04</span>Entropy, Gini, and the split decision</h2>
+
+<p>
+  Three functions make up the entire arithmetic core of ID3 and CART. They are
+  worth writing out because they demystify what
+  <code>criterion="entropy"</code> actually computes.
+</p>
+
+<figure>
+  <img src="assets/impurity_curves.png" alt="Entropy and Gini impurity plotted against the proportion of the positive class">
+  <figcaption>
+    Both measures peak on a 50/50 split and vanish at purity. They differ in
+    scale, not shape — which is why the two criteria so often induce the same
+    tree.
+  </figcaption>
+</figure>
+
+<figure>
+  <img src="assets/information_gain.png" alt="Bar chart of information gain for each PlayTennis feature, with outlook highest">
+  <figcaption>
+    Information gain for each feature at the root of Quinlan's PlayTennis
+    dataset. <code>outlook</code> wins with 0.2467 bits; <code>temp</code> is
+    nearly useless at 0.0292. These are the published textbook values, and
+    reproducing them exactly is what distinguishes a correct implementation
+    from a merely plausible one.
+  </figcaption>
+</figure>
+
+<div class="note warn">
+  <span class="label">A leakage trap in 14 rows</span>
+  <p>
+    PlayTennis ships with a <code>day</code> column, <code>D1</code>–<code>D14</code>.
+    It looks like data. Left in, a decision tree splits on it, achieves perfect
+    training accuracy by memorising row identifiers, and generalises to nothing.
+    The loader drops it. This is the smallest honest demonstration of leakage I
+    know of.
+  </p>
+</div>
+
+<h2 id="knn"><span class="num">05</span>KNN, and an honest disagreement</h2>
+
+<p>
+  KNN has no training step — <code>fit</code> only stores the data. All the cost
+  is deferred to prediction time, which is exactly why it is trivial to train
+  and expensive to serve.
+</p>
+
+<figure>
+  <img src="assets/knn_k_sweep.png" alt="Train and test accuracy on Iris plotted against k from 1 to 30">
+  <figcaption>
+    Train and test accuracy as k varies, from this project's implementation. At
+    k=1 training accuracy is exactly 1.0 — every training point is its own
+    nearest neighbour. That is memorisation, and the gap between the curves is
+    the clearest picture of overfitting in this folder.
+  </figcaption>
+</figure>
+
+<div class="note warn">
+  <span class="label">Where we disagree with scikit-learn</span>
+  <p>
+    Iris measurements are recorded to one decimal place, so exact distance ties
+    are common: under Manhattan distance, <strong>17 of 30</strong> test queries
+    have the k-th and (k+1)-th neighbour equidistant. When that happens the
+    neighbour set is genuinely ambiguous, and two correct implementations may
+    return different predictions.
+  </p>
+  <p>
+    On one such query this implementation predicts class 1 and scikit&#8209;learn
+    predicts class 2. Both are defensible. Rather than tune a tie-break rule
+    until the numbers matched, the test-suite compares only unambiguous queries
+    and asserts separately that the <em>distance profiles</em> always agree
+    exactly. Forcing agreement would have hidden a real property of the
+    algorithm.
+  </p>
+</div>
+
+<h2 id="bayes"><span class="num">06</span>Naive Bayes: smoothing and underflow</h2>
+
+<p>
+  The conditional-independence assumption is plainly false on PlayTennis —
+  humidity and outlook are related — and the classifier works anyway. Two
+  implementation details carry the whole thing.
+</p>
+
+<h3>Laplace smoothing</h3>
+<p>
+  Without it, a single unseen <code>(feature, value, class)</code> combination
+  drives the entire product to zero, and that class can never be predicted no
+  matter how strong the remaining evidence. The test pins both behaviours:
+  with smoothing the probability is small, without it exactly zero.
+</p>
+
+<h3>Log-space arithmetic</h3>
+<p>
+  Multiplying many small probabilities underflows to zero in float64. The
+  implementation sums logs instead, and normalises with the log-sum-exp trick.
+</p>
+
+<pre><code>def test_log_space_avoids_underflow_on_wide_input(self):
+    """400 features would underflow to zero if probabilities were multiplied."""
+    n_features = 400
+    X = [["a"] * n_features, ["b"] * n_features] * 5
+    y = ["yes", "no"] * 5
+
+    model = CategoricalNaiveBayes().fit(X, y)
+    probabilities = model.predict_proba([["a"] * n_features])
+
+    assert np.isfinite(probabilities.to_numpy()).all()
+    assert probabilities.to_numpy().sum() == pytest.approx(1.0)</code></pre>
+
+<p>
+  With both details right, the posteriors match
+  <code>sklearn.naive_bayes.CategoricalNB</code> to <strong>5.6e&#8722;16</strong> —
+  floating-point identical, not merely close.
+</p>
+
+<h2 id="scaling"><span class="num">07</span>The scaling trap</h2>
+
+<p>
+  k-means is not reimplemented here — Lloyd's algorithm adds little beyond what
+  is already demonstrated — but one point from the notebook is worth keeping.
+</p>
+
+<figure>
+  <img src="assets/kmeans_scaling.png" alt="Two scatter plots of k-means clusters, unscaled versus min-max scaled">
+  <figcaption>
+    Income spans roughly 45k–162k; age spans 26–43. Euclidean distance is
+    therefore determined almost entirely by income, and unscaled k-means
+    recovers horizontal income bands rather than the age/income groups a human
+    sees immediately. Min-max scaling first fixes it.
+  </figcaption>
+</figure>
+
+<figure>
+  <img src="assets/kmeans_elbow.png" alt="Elbow plot of within-cluster sum of squares against k">
+  <figcaption>
+    Within-cluster sum of squares against k, on the scaled features. The elbow
+    at k=3 is unusually clean here; on real data this diagnostic is rarely this
+    obliging.
+  </figcaption>
+</figure>
+
+<p>
+  Every distance-based method in this folder inherits this sensitivity —
+  including the KNN implementation above.
+</p>
+
+<h2 id="run"><span class="num">08</span>Running it yourself</h2>
+
+<pre><code>cd 00-foundations
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+pytest                           # 72 tests, ~2 seconds
+python scripts/make_figures.py   # regenerate every figure above</code></pre>
+
+<p>Using the implementations directly:</p>
+
+<pre><code>from src.datasets import load_play_tennis
+from src.impurity import best_split, entropy
+
+X, y = load_play_tennis()
+print(entropy(y))        # 0.9402859586706311
+print(best_split(X, y))  # ('outlook', 0.24674981977443933)</code></pre>
+
+<h2 id="limits"><span class="num">09</span>What this is not</h2>
+
+<ul>
+  <li><strong>Not a scikit-learn replacement.</strong> These implementations are
+    unoptimised and handle only the cases the tests cover.</li>
+  <li><strong>Not a complete decision tree.</strong> <code>impurity.py</code>
+    supplies the split criterion; recursive induction is left to the library.</li>
+  <li><strong>Not evidence of model quality.</strong> The datasets have 4, 14,
+    and 150 rows. They demonstrate mechanics. Nothing here is a performance
+    claim, and the PlayTennis accuracy figures are training accuracy, labelled
+    as such.</li>
+  <li><strong>Not all original.</strong> Two of the seven notebooks follow
+    <a href="https://github.com/codebasics/py">codebasics</a> tutorials and say
+    so in their first cell. Everything under <code>src/</code> is written from
+    scratch, which is what the tests exist to substantiate.</li>
+</ul>
+
+<footer>
+  <p>
+    Project 00 of a machine-learning portfolio spanning December 2022 to
+    January 2026. Source, tests, and datasets:
+    <a href="https://github.com/CHAITANYA-2002/machine-learning-projects">github.com/CHAITANYA-2002/machine-learning-projects</a>
+  </p>
+  <p>
+    Next: <a href="../../01-fake-news-classifier/">01 — Fake News Classifier</a>,
+    where the datasets are large enough for evaluation to mean something.
+  </p>
+</footer>
+
+</div>
+</body>
+</html>
