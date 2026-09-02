@@ -4,10 +4,10 @@
   <defs>
     <linearGradient id="head" x1="0" x2="1"><stop stop-color="#20175a"/><stop offset="1" stop-color="#5540bd"/></linearGradient>
     <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M1 1L11 6L1 11z" fill="#66758d"/></marker>
-    <style>.title{font:700 30px system-ui,-apple-system,Segoe UI,sans-serif;fill:#fff}.sub{font:500 15px system-ui,-apple-system,Segoe UI,sans-serif;fill:#e4e1ff}.cap{font:700 13px system-ui,-apple-system,Segoe UI,sans-serif;letter-spacing:1.5px;fill:#5e6c82}.n{font:750 44px system-ui,-apple-system,Segoe UI,sans-serif;fill:#17233a}.h{font:700 20px system-ui,-apple-system,Segoe UI,sans-serif;fill:#17233a}.p{font:500 15px system-ui,-apple-system,Segoe UI,sans-serif;fill:#53637b}.small{font:500 13px system-ui,-apple-system,Segoe UI,sans-serif;fill:#53637b}.arrow{fill:none;stroke:#66758d;stroke-width:3;marker-end:url(#arrow)}.yes{fill:none;stroke:#c87521;stroke-width:3;marker-end:url(#arrow)}.ok{fill:none;stroke:#138a72;stroke-width:3;marker-end:url(#arrow)}</style>
+    <style>.title{font:700 30px system-ui,-apple-system,Segoe UI,sans-serif;fill:#17233a}.sub{font:500 15px system-ui,-apple-system,Segoe UI,sans-serif;fill:#53637b}.cap{font:700 13px system-ui,-apple-system,Segoe UI,sans-serif;letter-spacing:1.5px;fill:#5e6c82}.n{font:750 44px system-ui,-apple-system,Segoe UI,sans-serif;fill:#17233a}.h{font:700 20px system-ui,-apple-system,Segoe UI,sans-serif;fill:#17233a}.p{font:500 15px system-ui,-apple-system,Segoe UI,sans-serif;fill:#53637b}.small{font:500 13px system-ui,-apple-system,Segoe UI,sans-serif;fill:#53637b}.arrow{fill:none;stroke:#66758d;stroke-width:3;marker-end:url(#arrow)}.yes{fill:none;stroke:#c87521;stroke-width:3;marker-end:url(#arrow)}.ok{fill:none;stroke:#138a72;stroke-width:3;marker-end:url(#arrow)}</style>
   </defs>
-  <rect width="1200" height="660" rx="24" fill="#f6f8fc"/>
-  <path d="M0 0H1200V125H0Z" fill="url(#head)"/>
+  <rect width="1200" height="660" rx="24" fill="#fff"/>
+  <path d="M56 125H1144" stroke="#dce3ef" stroke-width="2"/>
   <text x="56" y="55" class="title">Catalogue quality correction</text>
   <text x="56" y="86" class="sub">The correction reduces an upstream title-merge risk; it does not claim to improve recommendation quality.</text>
 

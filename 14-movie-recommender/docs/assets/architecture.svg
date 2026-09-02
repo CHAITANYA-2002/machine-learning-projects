@@ -5,11 +5,11 @@
     <linearGradient id="head" x1="0" x2="1"><stop stop-color="#20175a"/><stop offset="1" stop-color="#5540bd"/></linearGradient>
     <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M 1 1 L 11 6 L 1 11 z" fill="#66758d"/></marker>
     <style>
-      .title{font:700 30px system-ui,-apple-system,Segoe UI,sans-serif;fill:#fff}.sub{font:500 15px system-ui,-apple-system,Segoe UI,sans-serif;fill:#e4e1ff}.group{font:700 13px system-ui,-apple-system,Segoe UI,sans-serif;letter-spacing:1.7px;fill:#5e6c82}.box{stroke-width:2}.h{font:700 19px system-ui,-apple-system,Segoe UI,sans-serif;fill:#17233a}.p{font:500 15px system-ui,-apple-system,Segoe UI,sans-serif;fill:#53637b}.label{font:700 13px system-ui,-apple-system,Segoe UI,sans-serif;fill:#5e6c82}.arrow{fill:none;stroke:#66758d;stroke-width:3;marker-end:url(#arrow)}.optional{fill:none;stroke:#c87521;stroke-width:3;stroke-dasharray:9 7;marker-end:url(#arrow)}
+      .title{font:700 30px system-ui,-apple-system,Segoe UI,sans-serif;fill:#17233a}.sub{font:500 15px system-ui,-apple-system,Segoe UI,sans-serif;fill:#53637b}.group{font:700 13px system-ui,-apple-system,Segoe UI,sans-serif;letter-spacing:1.7px;fill:#5e6c82}.box{stroke-width:2}.h{font:700 19px system-ui,-apple-system,Segoe UI,sans-serif;fill:#17233a}.p{font:500 15px system-ui,-apple-system,Segoe UI,sans-serif;fill:#53637b}.label{font:700 13px system-ui,-apple-system,Segoe UI,sans-serif;fill:#5e6c82}.arrow{fill:none;stroke:#66758d;stroke-width:3;marker-end:url(#arrow)}.optional{fill:none;stroke:#c87521;stroke-width:3;stroke-dasharray:9 7;marker-end:url(#arrow)}
     </style>
   </defs>
-  <rect width="1200" height="700" rx="24" fill="#f6f8fc"/>
-  <path d="M0 0H1200V125H0Z" fill="url(#head)"/>
+  <rect width="1200" height="700" rx="24" fill="#fff"/>
+  <path d="M56 125H1144" stroke="#dce3ef" stroke-width="2"/>
   <text x="56" y="55" class="title">Local content-based movie recommender</text>
   <text x="56" y="86" class="sub">Architecture at runtime — no precomputed dense similarity matrix and no required network dependency</text>
 

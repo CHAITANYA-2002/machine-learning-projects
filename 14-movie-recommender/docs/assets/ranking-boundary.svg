@@ -4,10 +4,10 @@
   <defs>
     <linearGradient id="head" x1="0" x2="1"><stop stop-color="#20175a"/><stop offset="1" stop-color="#5540bd"/></linearGradient>
     <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M1 1L11 6L1 11z" fill="#66758d"/></marker>
-    <style>.title{font:700 30px system-ui,-apple-system,Segoe UI,sans-serif;fill:#fff}.sub{font:500 15px system-ui,-apple-system,Segoe UI,sans-serif;fill:#e4e1ff}.cap{font:700 13px system-ui,-apple-system,Segoe UI,sans-serif;letter-spacing:1.5px;fill:#5e6c82}.h{font:700 20px system-ui,-apple-system,Segoe UI,sans-serif;fill:#17233a}.p{font:500 15px system-ui,-apple-system,Segoe UI,sans-serif;fill:#53637b}.result{font:750 25px system-ui,-apple-system,Segoe UI,sans-serif;fill:#17233a}.arrow{fill:none;stroke:#66758d;stroke-width:3;marker-end:url(#arrow)}.cut{stroke:#c87521;stroke-width:4}.x{font:800 22px system-ui,-apple-system,Segoe UI,sans-serif;fill:#c87521}</style>
+    <style>.title{font:700 30px system-ui,-apple-system,Segoe UI,sans-serif;fill:#17233a}.sub{font:500 15px system-ui,-apple-system,Segoe UI,sans-serif;fill:#53637b}.cap{font:700 13px system-ui,-apple-system,Segoe UI,sans-serif;letter-spacing:1.5px;fill:#5e6c82}.h{font:700 20px system-ui,-apple-system,Segoe UI,sans-serif;fill:#17233a}.p{font:500 15px system-ui,-apple-system,Segoe UI,sans-serif;fill:#53637b}.result{font:750 25px system-ui,-apple-system,Segoe UI,sans-serif;fill:#17233a}.arrow{fill:none;stroke:#66758d;stroke-width:3;marker-end:url(#arrow)}.rule{stroke:#dce3ef;stroke-width:2}</style>
   </defs>
-  <rect width="1200" height="640" rx="24" fill="#f6f8fc"/>
-  <path d="M0 0H1200V125H0Z" fill="url(#head)"/>
+  <rect width="1200" height="640" rx="24" fill="#fff"/>
+  <path d="M56 125H1144" stroke="#dce3ef" stroke-width="2"/>
   <text x="56" y="55" class="title">What the ranking means — and does not mean</text>
   <text x="56" y="86" class="sub">A clear model boundary prevents a content-similarity demo from being misrepresented as personal recommendation.</text>
 
@@ -26,8 +26,9 @@
   <rect x="965" y="272" width="180" height="146" rx="18" fill="#fff" stroke="#a7b5c8" stroke-width="2"/>
   <text x="992" y="310" class="cap">RESULT</text><text x="992" y="349" class="result">Top five</text><text x="992" y="378" class="p">titles + scores</text>
 
-  <rect x="55" y="550" width="1090" height="60" rx="14" fill="#fff3e2" stroke="#f0c18f" stroke-width="2"/>
-  <text x="80" y="586" class="x">×</text><text x="112" y="586" class="p">Not available to the ranker: identities, viewing history, ratings, clicks, availability, popularity, editorial curation, semantic embeddings, diversity constraints, or relevance judgments.</text>
-  <path d="M265 520V536H615" class="cut"/><path d="M275 520V536M605 520V536" class="cut"/>
-  <text x="323" y="538" class="cap">NO PERSONAL OR EVALUATION SIGNAL</text>
+  <text x="55" y="548" class="cap">EXCLUDED SIGNAL CATEGORIES</text>
+  <path d="M55 565H1145" class="rule"/>
+  <text x="55" y="601" class="p">Personal: history, ratings, clicks</text>
+  <text x="425" y="601" class="p">Context: availability, popularity, curation</text>
+  <text x="815" y="601" class="p">Evaluation: embeddings, diversity, relevance labels</text>
 </svg>
