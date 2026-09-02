@@ -101,7 +101,7 @@ sequenceDiagram
         UI->>T: Fetch poster for each recommended TMDB ID (10s timeout)
         T-->>UI: Poster path or error
     end
-    UI-->>U: Recommendations; text still renders if poster lookup fails
+    UI-->>U: Recommendations - text still renders if poster lookup fails
 ```
 
 ![Recommendation request data flow](docs/assets/recommendation-flow.svg)
