@@ -1,0 +1,177 @@
+{
+  "catalog": {
+    "films": 4794,
+    "vocabulary_retained": 5000,
+    "tag_tokens_min": 3,
+    "tag_tokens_median": 63,
+    "tag_tokens_mean": 66.2,
+    "tag_tokens_max": 200,
+    "top_terms": [
+      "drama",
+      "comedy",
+      "thriller",
+      "action",
+      "family",
+      "romance",
+      "adventure",
+      "life",
+      "crime",
+      "new"
+    ]
+  },
+  "similarity": {
+    "rank1_median": 0.2879,
+    "rank1_p10": 0.2226,
+    "rank1_p90": 0.3849,
+    "rank5_median": 0.2273,
+    "queries_with_rank1_below_0_2": 149,
+    "queries_with_rank1_above_0_5": 54
+  },
+  "coverage": {
+    "coverage_at_5": 0.8646,
+    "coverage_at_1": 0.4625,
+    "never_recommended": 649,
+    "never_recommended_share": 0.1354,
+    "gini": 0.5826,
+    "top_1pct_share_of_slots": 0.1303,
+    "most_recommended_count": 176,
+    "most_recommended_title": "The Helix... Loaded"
+  },
+  "ablation": {
+    "mean_overlap_of_5": 2.347,
+    "identical_list_share": 0.0426,
+    "no_overlap_share": 0.0709
+  },
+  "vocabulary_cap": {
+    "distinct_tokens": 35506,
+    "tokens_kept": 5000,
+    "token_retention": 0.1408,
+    "name_tokens": 7835,
+    "name_tokens_kept": 498,
+    "name_token_retention": 0.0636,
+    "films_with_name_before": 0.9958,
+    "films_with_name_after": 0.6975,
+    "films_losing_all_names": 1430
+  },
+  "exposure_bias": {
+    "length_frequency_correlation": -0.224,
+    "short_tag_films": 7,
+    "short_tag_mean_exposure": 62.7,
+    "other_mean_exposure": 4.9,
+    "over_exposure_ratio": 12.8
+  },
+  "cost": {
+    "sparse_index_mib": 1.55,
+    "dense_similarity_mib": 175.3,
+    "memory_ratio": 113.4,
+    "median_query_ms": 11.99,
+    "nonzero_entries": 133467,
+    "density": 0.00557
+  },
+  "examples": [
+    {
+      "query": "The Dark Knight",
+      "movie_id": 155,
+      "recommendations": [
+        {
+          "title": "The Dark Knight Rises",
+          "score": 0.415
+        },
+        {
+          "title": "Batman Begins",
+          "score": 0.379
+        },
+        {
+          "title": "Batman Returns",
+          "score": 0.312
+        },
+        {
+          "title": "Batman Forever",
+          "score": 0.279
+        },
+        {
+          "title": "Batman & Robin",
+          "score": 0.271
+        }
+      ]
+    },
+    {
+      "query": "The Avengers",
+      "movie_id": 24428,
+      "recommendations": [
+        {
+          "title": "Avengers: Age of Ultron",
+          "score": 0.363
+        },
+        {
+          "title": "Captain America: Civil War",
+          "score": 0.329
+        },
+        {
+          "title": "Iron Man 3",
+          "score": 0.312
+        },
+        {
+          "title": "Captain America: The First Avenger",
+          "score": 0.298
+        },
+        {
+          "title": "Iron Man",
+          "score": 0.292
+        }
+      ]
+    },
+    {
+      "query": "Toy Story",
+      "movie_id": 862,
+      "recommendations": [
+        {
+          "title": "Toy Story 2",
+          "score": 0.472
+        },
+        {
+          "title": "Toy Story 3",
+          "score": 0.449
+        },
+        {
+          "title": "The 40 Year Old Virgin",
+          "score": 0.31
+        },
+        {
+          "title": "Heartbeeps",
+          "score": 0.183
+        },
+        {
+          "title": "Max Keeble's Big Move",
+          "score": 0.157
+        }
+      ]
+    },
+    {
+      "query": "Pulp Fiction",
+      "movie_id": 680,
+      "recommendations": [
+        {
+          "title": "Easy Money",
+          "score": 0.27
+        },
+        {
+          "title": "Nine Queens",
+          "score": 0.253
+        },
+        {
+          "title": "The Man",
+          "score": 0.239
+        },
+        {
+          "title": "Blood Ties",
+          "score": 0.233
+        },
+        {
+          "title": "Dead Man Down",
+          "score": 0.228
+        }
+      ]
+    }
+  ]
+}
