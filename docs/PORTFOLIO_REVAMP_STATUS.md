@@ -18,6 +18,7 @@ It is an audit trail—not a claim that unavailable projects have been executed.
 | Histology Colour-Normalisation Exploration | Medical-image normalization | Documentation and recovery path complete; execution blocked | Original Google Drive hierarchy, data governance, and reference-image protocol |
 | Appearance-Label Image Classifier | Image classification | Documentation and recovery path complete; execution blocked | Consented, documented image dataset with group-aware split metadata |
 | Voice-Guided Grocery Cart Prototype | Speech and LLM application | Validation tests and syntax checks verified; live workflow not run | Microphone/audio runtime, user-provided `OPENAI_API_KEY`, authorised retailer accounts, and current site selectors |
+| Content-Based Movie Recommender | Recommender systems | Implementation and committed-catalogue checks verified | Raw TMDB Movies/Credits files joined by numeric movie ID for a full source-data rebuild; relevance judgments for recommendation-quality evaluation |
 
 ## Standards applied during the revamp
 

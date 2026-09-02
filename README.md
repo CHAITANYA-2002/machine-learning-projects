@@ -1,6 +1,6 @@
 # Machine Learning Projects
 
-**Fourteen projects, December 2022 to January 2026.** Classical algorithms
+**Fifteen projects, December 2022 to September 2026.** Classical algorithms
 written from scratch, computer vision, NLP, time-series forecasting, medical
 imaging, and an LLM-driven voice agent — in the order they were built.
 
@@ -10,7 +10,7 @@ imaging, and an LLM-driven voice agent — in the order they were built.
 
 ```mermaid
 timeline
-    title Three years, fourteen projects
+    title 2022–2026, fifteen projects
     2022 · Starting out : Foundations — algorithms from scratch
                         : Fake News Classifier — first LSTM
                         : Gender Image Classifier — first CNN
@@ -25,6 +25,7 @@ timeline
                         : Neural Net Experiments — architecture tuning
                         : Image Super-Resolution — ESRGAN
     2026 · Applied AI   : Voice Shopping Agent — speech + LLM + automation
+                        : Movie Recommender — content similarity with data-quality controls
 ```
 
 Each project folder is numbered in the order it was built, so the directory
@@ -52,6 +53,7 @@ need to open the code.
 | 11 | [Neural Net Experiments](11-neural-net-experiments/) | Deep learning | Architecture and regularisation comparisons |
 | 12 | [Image Super-Resolution](12-image-super-resolution/) | Computer vision | ESRGAN, RRDBNet, model interpolation |
 | 13 | [Voice Shopping Agent](13-voice-shopping-agent/) | Applied AI | Speech recognition, LLM tool use, browser automation |
+| 14 | [Content-Based Movie Recommender](14-movie-recommender/) | Recommender systems | Count vectors, cosine similarity, sparse retrieval |
 
 ---
 
@@ -91,6 +93,10 @@ mindmap
       Speech interfaces
       LLM tool use
       Browser automation
+    Recommender systems
+      Count vectors
+      Cosine similarity
+      Sparse retrieval
 ```
 
 ---
@@ -114,7 +120,7 @@ NN-project-name/
 ```
 
 Not every project has every directory — a notebook-only project has no `src/`.
-Where a directory exists, it means the same thing across all fourteen.
+Where a directory exists, it means the same thing across all fifteen.
 
 ```mermaid
 flowchart LR
