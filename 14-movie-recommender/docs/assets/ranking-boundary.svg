@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" role="img" aria-labelledby="title desc">
+  <title id="title">Ranking capability boundary</title>
+  <desc id="desc">The recommender ranks films by overlap of prepared metadata tags. It does not see user preferences, popularity, availability, editorial labels, or semantic embeddings, so it cannot make personal relevance claims.</desc>
+  <defs>
+    <linearGradient id="head" x1="0" x2="1"><stop stop-color="#20175a"/><stop offset="1" stop-color="#5540bd"/></linearGradient>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M1 1L11 6L1 11z" fill="#66758d"/></marker>
+    <style>.title{font:700 30px system-ui,-apple-system,Segoe UI,sans-serif;fill:#fff}.sub{font:500 15px system-ui,-apple-system,Segoe UI,sans-serif;fill:#e4e1ff}.cap{font:700 13px system-ui,-apple-system,Segoe UI,sans-serif;letter-spacing:1.5px;fill:#5e6c82}.h{font:700 20px system-ui,-apple-system,Segoe UI,sans-serif;fill:#17233a}.p{font:500 15px system-ui,-apple-system,Segoe UI,sans-serif;fill:#53637b}.result{font:750 25px system-ui,-apple-system,Segoe UI,sans-serif;fill:#17233a}.arrow{fill:none;stroke:#66758d;stroke-width:3;marker-end:url(#arrow)}.cut{stroke:#c87521;stroke-width:4}.x{font:800 22px system-ui,-apple-system,Segoe UI,sans-serif;fill:#c87521}</style>
+  </defs>
+  <rect width="1200" height="640" rx="24" fill="#f6f8fc"/>
+  <path d="M0 0H1200V125H0Z" fill="url(#head)"/>
+  <text x="56" y="55" class="title">What the ranking means — and does not mean</text>
+  <text x="56" y="86" class="sub">A clear model boundary prevents a content-similarity demo from being misrepresented as personal recommendation.</text>
+
+  <rect x="55" y="170" width="430" height="350" rx="18" fill="#e9f6f2" stroke="#6eb79f" stroke-width="2"/>
+  <text x="83" y="208" class="cap">INPUTS THE MODEL USES</text><text x="83" y="246" class="h">Prepared metadata tags</text>
+  <rect x="83" y="270" width="175" height="52" rx="10" fill="#fff" stroke="#a6dbce"/><text x="105" y="302" class="p">overview + genres</text>
+  <rect x="278" y="270" width="175" height="52" rx="10" fill="#fff" stroke="#a6dbce"/><text x="300" y="302" class="p">keywords</text>
+  <rect x="83" y="343" width="175" height="52" rx="10" fill="#fff" stroke="#a6dbce"/><text x="105" y="375" class="p">up to three cast</text>
+  <rect x="278" y="343" width="175" height="52" rx="10" fill="#fff" stroke="#a6dbce"/><text x="300" y="375" class="p">director names</text>
+  <text x="83" y="450" class="p">Count-vector overlap → cosine similarity</text><text x="83" y="482" class="p">Output: metadata-nearest catalogue rows</text>
+
+  <path d="M485 345H620" class="arrow"/>
+  <rect x="620" y="272" width="230" height="146" rx="18" fill="#eef0ff" stroke="#9382ec" stroke-width="2"/>
+  <text x="649" y="310" class="cap">LOCAL RANKER</text><text x="649" y="348" class="h">Sparse vectors</text><text x="649" y="377" class="p">one selected row vs all</text>
+  <path d="M850 345H965" class="arrow"/>
+  <rect x="965" y="272" width="180" height="146" rx="18" fill="#fff" stroke="#a7b5c8" stroke-width="2"/>
+  <text x="992" y="310" class="cap">RESULT</text><text x="992" y="349" class="result">Top five</text><text x="992" y="378" class="p">titles + scores</text>
+
+  <rect x="55" y="550" width="1090" height="60" rx="14" fill="#fff3e2" stroke="#f0c18f" stroke-width="2"/>
+  <text x="80" y="586" class="x">×</text><text x="112" y="586" class="p">Not available to the ranker: identities, viewing history, ratings, clicks, availability, popularity, editorial curation, semantic embeddings, diversity constraints, or relevance judgments.</text>
+  <path d="M265 520V536H615" class="cut"/><path d="M275 520V536M605 520V536" class="cut"/>
+  <text x="323" y="538" class="cap">NO PERSONAL OR EVALUATION SIGNAL</text>
+</svg>

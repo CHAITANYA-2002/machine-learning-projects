@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" role="img" aria-labelledby="title desc">
+  <title id="title">Catalogue data quality correction</title>
+  <desc id="desc">The 4,806-row legacy pickle is audited for repeated titles. Twelve ambiguous records are excluded, producing a 4,794-row static catalogue. A future raw-data rebuild must join on numeric movie identifiers.</desc>
+  <defs>
+    <linearGradient id="head" x1="0" x2="1"><stop stop-color="#20175a"/><stop offset="1" stop-color="#5540bd"/></linearGradient>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M1 1L11 6L1 11z" fill="#66758d"/></marker>
+    <style>.title{font:700 30px system-ui,-apple-system,Segoe UI,sans-serif;fill:#fff}.sub{font:500 15px system-ui,-apple-system,Segoe UI,sans-serif;fill:#e4e1ff}.cap{font:700 13px system-ui,-apple-system,Segoe UI,sans-serif;letter-spacing:1.5px;fill:#5e6c82}.n{font:750 44px system-ui,-apple-system,Segoe UI,sans-serif;fill:#17233a}.h{font:700 20px system-ui,-apple-system,Segoe UI,sans-serif;fill:#17233a}.p{font:500 15px system-ui,-apple-system,Segoe UI,sans-serif;fill:#53637b}.small{font:500 13px system-ui,-apple-system,Segoe UI,sans-serif;fill:#53637b}.arrow{fill:none;stroke:#66758d;stroke-width:3;marker-end:url(#arrow)}.yes{fill:none;stroke:#c87521;stroke-width:3;marker-end:url(#arrow)}.ok{fill:none;stroke:#138a72;stroke-width:3;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1200" height="660" rx="24" fill="#f6f8fc"/>
+  <path d="M0 0H1200V125H0Z" fill="url(#head)"/>
+  <text x="56" y="55" class="title">Catalogue quality correction</text>
+  <text x="56" y="86" class="sub">The correction reduces an upstream title-merge risk; it does not claim to improve recommendation quality.</text>
+
+  <rect x="55" y="185" width="290" height="185" rx="18" fill="#fff" stroke="#a7b5c8" stroke-width="2"/>
+  <text x="83" y="222" class="cap">LEGACY ARTIFACT</text><text x="83" y="279" class="n">4,806</text><text x="83" y="310" class="h">pickle rows</text><text x="83" y="339" class="p">Derived by a notebook that joined</text><text x="83" y="362" class="p">movies and credits on title.</text>
+  <path d="M345 278H442" class="arrow"/><text x="355" y="260" class="cap">AUDIT</text>
+  <polygon points="540,180 650,278 540,376 430,278" fill="#eef0ff" stroke="#9382ec" stroke-width="2"/>
+  <text x="491" y="267" class="h">Repeated title?</text><text x="503" y="294" class="p">metadata ambiguous</text>
+  <path d="M650 278H744" class="ok"/><text x="682" y="260" class="cap">NO</text>
+  <rect x="745" y="185" width="400" height="185" rx="18" fill="#e9f6f2" stroke="#6eb79f" stroke-width="2"/>
+  <text x="773" y="222" class="cap">RUNNABLE CATALOGUE</text><text x="773" y="279" class="n">4,794</text><text x="773" y="310" class="h">unambiguous static records</text><text x="773" y="339" class="p">Committed `movie_id`, `title`, `tags` CSV.</text><text x="773" y="362" class="p">Permitted input for local ranking.</text>
+  <path d="M540 376V442H311" class="yes"/><text x="398" y="427" class="cap">YES · 12 ROWS</text>
+  <rect x="55" y="470" width="512" height="135" rx="18" fill="#fff3e2" stroke="#dc9d55" stroke-width="2"/>
+  <text x="83" y="507" class="h">Excluded from the runnable catalogue</text><text x="83" y="538" class="p">Repeated source titles: Batman · The Host · Out of the Blue</text><text x="83" y="565" class="p">Do not present rankings whose cast/director text may belong to another film.</text>
+  <path d="M945 370V442" class="arrow"/>
+  <rect x="668" y="470" width="477" height="135" rx="18" fill="#eef0ff" stroke="#9382ec" stroke-width="2"/>
+  <text x="696" y="507" class="h">Safe future rebuild boundary</text><text x="696" y="538" class="p">Obtain permitted raw source tables, join on numeric TMDB ID,</text><text x="696" y="565" class="p">record version/licence, validate, then regenerate tags.</text>
+</svg>

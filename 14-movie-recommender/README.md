@@ -63,6 +63,10 @@ sequenceDiagram
 
 The Streamlit UI caches the fitted recommender for its process lifetime. It does **not** save selection history, telemetry, ratings, or personal data.
 
+![Recommendation request data flow](docs/assets/recommendation-flow.svg)
+
+The rendered diagram separates the one-time, cached catalogue/index initialization from a single user request. Each request uses a validated `movie_id`, ranks one selected sparse vector against the catalogue, and returns five titles with cosine-similarity scores.
+
 ## System at a glance
 
 ```mermaid
@@ -76,6 +80,10 @@ flowchart LR
     top5 --> ui["Streamlit cards\ntitle + score"]
     top5 -. optional .-> posters["TMDB poster request\nTMDB_API_KEY only"]
 ```
+
+![Local recommender architecture](docs/assets/architecture.svg)
+
+This figure is a static SVG so it renders both in GitHub and in the local standalone walkthrough. The required runtime path stops at the Streamlit result cards; the TMDB poster API is a clearly labelled optional side path.
 
 ### Why this is not the original dense matrix approach
 
@@ -104,6 +112,8 @@ flowchart TD
     raw --> legacy["Preserved notebook\nrebuild only with raw TMDB tables"]
 ```
 
+![Catalogue data-quality correction flowchart](docs/assets/data-quality-correction.svg)
+
 This is a data-integrity correction, not a model-quality claim. A future rebuild should join the TMDB source tables on their numeric movie identifier, validate source-version/licensing terms, and then regenerate `tags` before deciding whether to restore the excluded films.
 
 ### Dataset boundaries
@@ -113,6 +123,10 @@ This is a data-integrity correction, not a model-quality claim. A future rebuild
 - The repository contains no user interactions, watch history, ratings, or relevance labels.
 - This project does not make copyright, streaming-availability, age-rating, or content-safety claims.
 - Poster retrieval is an optional external request and must comply with TMDB’s current API terms and the caller’s credentials.
+
+![Ranking capability boundary](docs/assets/ranking-boundary.svg)
+
+The diagram makes the inference boundary explicit: the ranker only sees prepared metadata tags. It has no personal-preference or evaluation signal, so its result is a metadata-nearest list rather than evidence of user satisfaction.
 
 ## Design decisions
 
@@ -142,6 +156,11 @@ This is a data-integrity correction, not a model-quality claim. A future rebuild
 ├── tests/
 │   └── test_recommender.py             # Unit + committed-catalogue regression checks
 └── docs/
+    ├── assets/                         # Rendered architecture, flow, data-quality, and boundary SVGs
+    │   ├── architecture.svg
+    │   ├── recommendation-flow.svg
+    │   ├── data-quality-correction.svg
+    │   └── ranking-boundary.svg
     └── index.html                      # Standalone visual walkthrough
 ```
 
@@ -204,4 +223,4 @@ The standalone source repository was reviewed at local commit `28d5230`. Its `ap
 
 ## Master walkthrough
 
-Open [`docs/index.html`](docs/index.html) in a browser for a self-contained visual version of this walkthrough.
+Open [`docs/index.html`](docs/index.html) in a browser for a self-contained visual version of this walkthrough. It includes four real, local SVG figures: system architecture, request-level data flow, catalogue correction flowchart, and the ranking capability boundary.

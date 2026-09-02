@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 690" role="img" aria-labelledby="title desc">
+  <title id="title">Recommendation request data flow</title>
+  <desc id="desc">A user selects a film in Streamlit. The application sends its stable ID to the recommender, which compares the selected sparse vector to the local catalogue and returns five ranked results. Poster lookup is optional.</desc>
+  <defs>
+    <linearGradient id="head" x1="0" x2="1"><stop stop-color="#20175a"/><stop offset="1" stop-color="#5540bd"/></linearGradient>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M1 1L11 6L1 11z" fill="#66758d"/></marker>
+    <style>.title{font:700 30px system-ui,-apple-system,Segoe UI,sans-serif;fill:#fff}.sub{font:500 15px system-ui,-apple-system,Segoe UI,sans-serif;fill:#e4e1ff}.name{font:700 17px system-ui,-apple-system,Segoe UI,sans-serif;fill:#17233a}.role{font:500 13px system-ui,-apple-system,Segoe UI,sans-serif;fill:#5e6c82}.step{font:700 15px system-ui,-apple-system,Segoe UI,sans-serif;fill:#17233a}.note{font:500 13px system-ui,-apple-system,Segoe UI,sans-serif;fill:#52627a}.arrow{stroke:#66758d;stroke-width:3;marker-end:url(#arrow)}.return{stroke:#138a72;stroke-width:3;marker-end:url(#arrow)}.optional{stroke:#c87521;stroke-width:3;stroke-dasharray:9 7;marker-end:url(#arrow)}.tag{font:700 12px system-ui,-apple-system,Segoe UI,sans-serif;letter-spacing:1px;fill:#5e6c82}</style>
+  </defs>
+  <rect width="1200" height="690" rx="24" fill="#f6f8fc"/>
+  <path d="M0 0H1200V125H0Z" fill="url(#head)"/>
+  <text x="56" y="55" class="title">Recommendation request data flow</text>
+  <text x="56" y="86" class="sub">The first three steps run once per app process; the ranking path begins only after a user selection.</text>
+
+  <g>
+    <rect x="55" y="155" width="190" height="75" rx="14" fill="#fff" stroke="#a7b5c8" stroke-width="2"/><text x="78" y="185" class="name">movie_catalog.csv</text><text x="78" y="208" class="role">Static local data</text>
+    <rect x="315" y="155" width="190" height="75" rx="14" fill="#eef0ff" stroke="#9382ec" stroke-width="2"/><text x="339" y="185" class="name">Recommender</text><text x="339" y="208" class="role">Sparse index + ranker</text>
+    <rect x="575" y="155" width="190" height="75" rx="14" fill="#fff" stroke="#a7b5c8" stroke-width="2"/><text x="599" y="185" class="name">Streamlit UI</text><text x="599" y="208" class="role">Selection + results</text>
+    <rect x="835" y="155" width="190" height="75" rx="14" fill="#fff" stroke="#a7b5c8" stroke-width="2"/><text x="859" y="185" class="name">Browser user</text><text x="859" y="208" class="role">No account required</text>
+  </g>
+  <path d="M150 230V612M410 230V612M670 230V612M930 230V612" stroke="#cbd5e3" stroke-width="2" stroke-dasharray="5 8"/>
+
+  <rect x="50" y="263" width="1100" height="66" rx="12" fill="#eef0ff" stroke="#d3cafb"/>
+  <text x="76" y="290" class="tag">PROCESS STARTUP · CACHED</text>
+  <text x="76" y="314" class="note">1. UI loads the CSV.  2. The recommender validates `movie_id`, `title`, and `tags`.  3. CountVectorizer fits a sparse matrix in memory.</text>
+  <path d="M245 361H395" class="arrow"/>
+  <rect x="260" y="341" width="120" height="42" rx="9" fill="#fff" stroke="#dce3ef"/><text x="281" y="367" class="step">load + validate</text>
+  <path d="M505 408H655" class="return"/>
+  <rect x="519" y="388" width="122" height="42" rx="9" fill="#e9f6f2" stroke="#a6dbce"/><text x="539" y="414" class="step">cached index</text>
+
+  <rect x="50" y="448" width="1100" height="66" rx="12" fill="#fff3e2" stroke="#f0c18f"/>
+  <text x="76" y="475" class="tag">ONE USER REQUEST</text>
+  <text x="76" y="499" class="note">The browser chooses one labelled film. The UI converts that choice to the catalogue's stable numeric movie ID.</text>
+  <path d="M835 547H685" class="arrow"/>
+  <rect x="704" y="527" width="112" height="42" rx="9" fill="#fff" stroke="#dce3ef"/><text x="725" y="553" class="step">select film</text>
+  <path d="M575 590H425" class="arrow"/>
+  <rect x="444" y="570" width="112" height="42" rx="9" fill="#fff" stroke="#dce3ef"/><text x="458" y="596" class="step">movie_id, limit=5</text>
+  <path d="M410 637H655" class="return"/>
+  <rect x="443" y="617" width="179" height="42" rx="9" fill="#e9f6f2" stroke="#a6dbce"/><text x="462" y="643" class="step">five titles + cosine scores</text>
+  <path d="M765 637H915" class="return"/>
+  <rect x="777" y="617" width="126" height="42" rx="9" fill="#e9f6f2" stroke="#a6dbce"/><text x="793" y="643" class="step">render cards</text>
+  <path d="M670 585V547" class="optional"/>
+  <text x="688" y="576" class="note">optional TMDB poster request only if an API key is configured</text>
+</svg>

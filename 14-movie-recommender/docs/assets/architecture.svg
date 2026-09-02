@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" role="img" aria-labelledby="title desc">
+  <title id="title">Local movie recommender architecture</title>
+  <desc id="desc">A static movie catalogue is validated, vectorised into a cached sparse matrix, queried by a selected movie ID, and rendered as five recommendations. Poster requests are optional.</desc>
+  <defs>
+    <linearGradient id="head" x1="0" x2="1"><stop stop-color="#20175a"/><stop offset="1" stop-color="#5540bd"/></linearGradient>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M 1 1 L 11 6 L 1 11 z" fill="#66758d"/></marker>
+    <style>
+      .title{font:700 30px system-ui,-apple-system,Segoe UI,sans-serif;fill:#fff}.sub{font:500 15px system-ui,-apple-system,Segoe UI,sans-serif;fill:#e4e1ff}.group{font:700 13px system-ui,-apple-system,Segoe UI,sans-serif;letter-spacing:1.7px;fill:#5e6c82}.box{stroke-width:2}.h{font:700 19px system-ui,-apple-system,Segoe UI,sans-serif;fill:#17233a}.p{font:500 15px system-ui,-apple-system,Segoe UI,sans-serif;fill:#53637b}.label{font:700 13px system-ui,-apple-system,Segoe UI,sans-serif;fill:#5e6c82}.arrow{fill:none;stroke:#66758d;stroke-width:3;marker-end:url(#arrow)}.optional{fill:none;stroke:#c87521;stroke-width:3;stroke-dasharray:9 7;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1200" height="700" rx="24" fill="#f6f8fc"/>
+  <path d="M0 0H1200V125H0Z" fill="url(#head)"/>
+  <text x="56" y="55" class="title">Local content-based movie recommender</text>
+  <text x="56" y="86" class="sub">Architecture at runtime — no precomputed dense similarity matrix and no required network dependency</text>
+
+  <text x="56" y="167" class="group">COMMITTED INPUT</text>
+  <text x="364" y="167" class="group">LOCAL INDEX BUILD (CACHED PER STREAMLIT PROCESS)</text>
+  <text x="856" y="167" class="group">QUERY AND PRESENTATION</text>
+
+  <rect x="56" y="194" width="245" height="168" rx="16" fill="#fff" stroke="#a7b5c8" class="box"/>
+  <text x="80" y="232" class="h">movie_catalog.csv</text>
+  <text x="80" y="263" class="p">4,794 static rows</text>
+  <text x="80" y="290" class="p">movie_id · title · tags</text>
+  <text x="80" y="330" class="label">LOCAL FILE • VERSIONED</text>
+
+  <rect x="364" y="194" width="244" height="168" rx="16" fill="#eef0ff" stroke="#9382ec" class="box"/>
+  <text x="388" y="232" class="h">validate_catalog</text>
+  <text x="388" y="263" class="p">Required schema</text>
+  <text x="388" y="290" class="p">Unique IDs · non-empty tags</text>
+  <text x="388" y="330" class="label">FAIL FAST ON BAD INPUT</text>
+
+  <rect x="671" y="194" width="244" height="168" rx="16" fill="#eef0ff" stroke="#9382ec" class="box"/>
+  <text x="695" y="232" class="h">CountVectorizer</text>
+  <text x="695" y="263" class="p">English stop words</text>
+  <text x="695" y="290" class="p">Up to 5,000 count features</text>
+  <text x="695" y="330" class="label">FIT ON TAGS</text>
+
+  <rect x="977" y="194" width="167" height="168" rx="16" fill="#e9f6f2" stroke="#6eb79f" class="box"/>
+  <text x="1001" y="232" class="h">Sparse</text>
+  <text x="1001" y="258" class="h">matrix</text>
+  <text x="1001" y="290" class="p">Cached</text>
+  <text x="1001" y="330" class="label">IN MEMORY</text>
+
+  <path d="M301 278H351" class="arrow"/>
+  <text x="303" y="263" class="label">load</text>
+  <path d="M608 278H658" class="arrow"/>
+  <text x="611" y="263" class="label">valid rows</text>
+  <path d="M915 278H964" class="arrow"/>
+  <text x="919" y="263" class="label">fit</text>
+
+  <rect x="56" y="455" width="245" height="166" rx="16" fill="#fff" stroke="#a7b5c8" class="box"/>
+  <text x="80" y="493" class="h">User selection</text>
+  <text x="80" y="524" class="p">Choose title in Streamlit</text>
+  <text x="80" y="551" class="p">Submit stable movie_id</text>
+  <text x="80" y="591" class="label">NO HISTORY STORED</text>
+
+  <rect x="418" y="455" width="290" height="166" rx="16" fill="#fff3e2" stroke="#dc9d55" class="box"/>
+  <text x="442" y="493" class="h">Cosine similarity query</text>
+  <text x="442" y="524" class="p">Selected vector × all sparse rows</text>
+  <text x="442" y="551" class="p">Exclude selected movie, rank top 5</text>
+  <text x="442" y="591" class="label">ONE-ROW QUERY</text>
+
+  <rect x="819" y="455" width="325" height="166" rx="16" fill="#e9f6f2" stroke="#6eb79f" class="box"/>
+  <text x="843" y="493" class="h">Streamlit result cards</text>
+  <text x="843" y="524" class="p">Five titles + similarity scores</text>
+  <text x="843" y="551" class="p">Text works fully offline</text>
+  <text x="843" y="591" class="label">POSTER IS OPTIONAL</text>
+
+  <path d="M301 538H405" class="arrow"/>
+  <text x="316" y="522" class="label">movie_id</text>
+  <path d="M1060 362V430H688" class="arrow"/>
+  <text x="795" y="417" class="label">cached matrix</text>
+  <path d="M708 538H806" class="arrow"/>
+  <text x="731" y="522" class="label">top 5 + scores</text>
+
+  <rect x="850" y="648" width="294" height="34" rx="12" fill="#fff3e2" stroke="#dc9d55"/>
+  <text x="871" y="670" class="p">TMDB poster API only when TMDB_API_KEY exists</text>
+  <path d="M982 621V639" class="optional"/>
+</svg>
