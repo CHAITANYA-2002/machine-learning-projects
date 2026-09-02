@@ -412,7 +412,14 @@ python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=80
 
 ## Migration record
 
-The standalone source repository was reviewed at local commit `28d5230`. Its `app.py`, `movie_list.pkl` and notebook were the available material. The original notebook is preserved as [`notebooks/01_legacy_tmdb_workflow.ipynb`](notebooks/01_legacy_tmdb_workflow.ipynb) for provenance; it expects raw TMDB CSV inputs that are not included here.
+The upstream repository's history has been merged into this repository, so commit `28d5230` is reachable here and no longer depends on a separate repo continuing to exist. Its `app.py`, `movie_list.pkl` and notebook were the available material.
+
+```bash
+git show 28d5230:movie_list.pkl > movie_list.pkl   # recover the original artifact
+git show 28d5230:app.py                            # the original Streamlit app
+```
+
+That artifact is worth keeping: it no longer loads on modern pandas, because pandas 2.x removed `pandas.core.indexes.numeric`, which the 1.x pickle references. Reading it now needs a compatibility shim — which is the strongest argument for the CSV migration. The original notebook is preserved as [`notebooks/01_legacy_tmdb_workflow.ipynb`](notebooks/01_legacy_tmdb_workflow.ipynb) for provenance; it expects raw TMDB CSV inputs that are not included here.
 
 | # | Upstream issue | Correction |
 |---|---|---|
